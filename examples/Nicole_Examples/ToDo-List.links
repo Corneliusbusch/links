@@ -1,0 +1,136 @@
+# ToDo List
+
+var allItemsList=["Hello", "World"];
+
+fun submitNewItem(item){
+    #allItemsList = item::allItemsList
+    renderItemList(item :: allItemsList)
+}
+
+fun renderItemList(items){
+    var list = getNodeById("item-list");
+    domReplaceChildren(itemsToXml(items), list)
+}
+
+fun itemsToXml(items){
+    <#>
+        {
+            for (item <- items){
+                #create a 
+                <div class="list-item  rounded-corners center">
+                    {stringToXml(item)}
+                </div>
+            }
+
+        }
+    </#>
+}
+
+var todoList = 
+    <#>
+        <div class="list  rounded-corners center">
+            <h1 class="centered-text bold-coloured-heading"> My ToDo-List </h1>
+            <div id="item-list">
+               {itemsToXml(allItemsList)}
+            </div>
+            <form l:onsubmit="{submitNewItem(newItem)}" class="form">
+                <input  type="text" l:name="newItem" class="input-field rounded-corners center" />
+                <input class="submit-button rounded-corners center" type="submit"/>             
+            </form>
+        </div>
+    </#>;
+
+fun main_page(_) {
+    page
+    <html>
+    <head>
+        <style>
+        body{{
+            font-size: 20px;
+            font-family: Bookman, sans-serif;
+        }}
+        .centered-text{{
+            text-align: center;
+        }}
+        .center{{
+            margin: 0 auto;
+        }}
+        .bold-coloured-heading{{
+            color: #00a075;
+            font-weight: bold;
+            font-size: 4em;
+        }}
+        .list{{
+            width: 65%;
+            min-width: 350px;
+            min-height: 600px;
+            background-color: #e8eaed;
+            padding: 1em;
+            border: 2px  solid #00a075;
+        }}
+        .list-item{{
+            margin-top: .4em;
+            margin-bottom: .4em;
+            min-width: 300px;
+            width: 90%;
+            min-height: 2em;
+            background-color: #f2f2f2;
+            color: #010b19;
+            border: 1px solid #00a075;
+            padding: .3em 5%;
+            display: flex;
+            justify-content: center;
+            flex-direction: column;
+        }}
+        .form{{
+            width: 100%;
+        }}
+        .input-field{{
+            width: 100%;
+            min-width: 300px;
+            min-height: 5em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            display: inline-block;
+            background-color: #f2f2f2;
+            color: #010b19;
+            padding: .3em 5%;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            
+        }}
+        .submit-button{{
+            width: 300px;
+            height: 50px;      
+            background-color: #00a075;
+            color: white;
+            padding: 14px 20px;
+            margin-top: 10px;
+            border: none;
+            cursor: pointer;
+            display: inline-block;
+        }}
+        .submit-button:hover{{
+            background-color: #028461;
+        }}
+        
+        .rounded-corners{{
+            border-radius: 5px;
+        }}
+        </style>
+    </head>
+        <body>
+            {todoList}
+        </body>
+    </html>
+}
+
+fun main() {
+    addRoute("/", main_page);
+
+    #addStaticRoute("/", "", [("css", "text/css"),("js", "text/javascript")]);
+	#addStaticRoute("/css/", "css/", [("css", "text/css")])
+    servePages()
+}
+
+main()
