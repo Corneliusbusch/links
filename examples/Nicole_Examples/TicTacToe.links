@@ -1,0 +1,117 @@
+# TicTacToe
+
+typename Fgr = [| X | O |];
+
+fun figureToInt(fgr) {
+    switch(fgr){
+        case X -> 0
+        case O -> 1
+    }
+}
+
+fun figureToString(fgr) {
+    switch(fgr){
+        case X -> "X"
+        case O -> "O"
+    }
+}
+
+fun chooseFigure(fig) {
+    print(figureToString(fig))
+}
+
+var start_page ={
+    <#>
+        <div class="center center-contents">
+            <button class="choose-button centered-text" l:onclick="{chooseFigure(X)}"> X </button>
+            <button class="choose-button centered-text" l:onclick="{chooseFigure(O)}"> O </button>
+        </div>
+    </#>
+};
+
+fun renderField(figures){
+    domReplaceChildren(figuresToXml(figures), getNodeById("field-page"))
+
+}
+
+fun figuresToXml(figures) {
+    <#>
+
+    </#>
+}
+
+
+fun main_page(_) {
+    page
+    <html>
+    <head>
+        <style>
+        body{{
+            font-size: 20px;
+            font-family: Bookman, sans-serif;
+        }}
+        .field-page{{
+            width: 70%;
+            min-width: 500px;
+            background-color: #e8e9ea;
+            height: 100%;
+            padding: .05em .2em;
+        }}
+        .main-heading{{
+            color: #470063;
+            font-size: 120px;
+            margin-bottom: 30px;
+        }}
+        .centered-text{{
+            text-align: center;
+        }}
+        .center{{
+            margin: 0 auto;
+        }}
+        .rounded-corners{{
+            border-radius: 5px;
+        }}
+        .center-contents{{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }}
+        .choose-button{{
+            width: 120px;
+            height: 120px;
+            background-color: #00a075;
+            float: right;
+            padding: 5px 5px;
+            border: none;
+            color: #FFFFFF;
+            font-size: 80px;
+            margin: 10px;
+        }}
+        .thin-grey{{
+            height: 1px;
+            border: 0;
+            width: 90%;
+            border-top: 2px solid #b8b8b8;
+            margin-top: 1em;
+            margin-bottom: 2em;
+            padding: 0;
+        }}
+        </style>
+    </head>
+        <body>
+            <div class="center field-page" id="field-page">
+                <h1 class="main-heading centered-text">Tic Tac Toe</h1>
+                <hr class="thin-grey center"/>
+                {start_page}
+            </div>
+        </body>
+    </html>
+}
+
+fun main() {
+    addRoute("/", main_page);
+
+    servePages()
+}
+
+main()
