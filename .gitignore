@@ -51,3 +51,7 @@ tests/shredding/config
 
 # Merlin
 *.merlin
+
+.gitignore
+
+handlers_config*

@@ -3,8 +3,9 @@
 typename Player = [|X|O|];
 typename Option(a) = [|None|Some:a|];
 
-var initialState = [None, None, None, None, None, None, None, None, None]: [Option(Player)];
+var initialState = [None, None, None, None, None, None, None, None, None] : [Option(Player)];
 
+sig addMove : (Player, Int, [Option(Player)]) ~> [Option(Player)]
 fun addMove(player, index, state){
     print("Set Move");
     mapi(fun(field, i){
@@ -16,6 +17,7 @@ fun addMove(player, index, state){
     }, state)
 }
 
+sig x: ([Option(Player)]) {hear:Int|_} ~> ()
 fun x(gameState){
     var index = recv();
     switch(gameState !! index){
@@ -35,6 +37,7 @@ fun x(gameState){
     }
 }
 
+sig o: ([Option(Player)]) {hear:Int|_} ~> ()
 fun o(gameState){
     var index = recv();
     switch(gameState !! index){
@@ -54,6 +57,7 @@ fun o(gameState){
     }
 }
 
+sig checkIfWon : (Player, [Option(Player)]) ~> Bool
 fun checkIfWon(player : Player, gameState){
 
     # very stupid. Couldn't understand how to loop through by rows and columns
@@ -77,13 +81,15 @@ fun checkIfWon(player : Player, gameState){
 
 }
 
-fun figureToInt(fgr) {
-    switch(fgr){
+sig playerToInt : (Player) -> Int
+fun playerToInt(player) {
+    switch(player){
         case X -> 0
         case O -> 1
     }
 }
 
+sig playerToString : (Player) -> String
 fun playerToString(player) {
     switch(player){
         case X -> "X"
@@ -91,6 +97,7 @@ fun playerToString(player) {
     }
 }
 
+sig optionToString : ((a) -e-> String) -> (Option(a)) -e-> String
 fun optionToString(xToString)(option){
     switch(option){
         case None -> "_"
@@ -98,15 +105,17 @@ fun optionToString(xToString)(option){
     }
 }
 
+sig listToString : ([a], ((a) ~e~> String)) ~e~>  String 
 fun listToString(list, xToString){
    "[" ^^ stringCat(intersperse(", ", map(xToString, list))) ^^ "]"
 }
 
+sig printState : ([Option(Player)]) ~> () 
 fun printState(state){
     print(listToString(state, optionToString(playerToString)))
 }
 
-
+sig intersperse : (a, [a]) ~> [a]
 fun intersperse(y, xs){
     switch(xs){
         case [] -> []
@@ -115,6 +124,7 @@ fun intersperse(y, xs){
     }
 }
 
+sig stringCat : ([String]) ~> String
 fun stringCat(xs){
     switch(xs){
         case [] -> ""
@@ -122,6 +132,7 @@ fun stringCat(xs){
     }
 }
 
+sig playGame : ([Int]) ~> ()
 fun playGame(moveList){
     var gameId = spawnAngel{x(initialState)};
     fun nextMove(moveList){
