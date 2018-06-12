@@ -1,0 +1,120 @@
+typename Matrix(a) = [[a]];
+
+# Apply a function to each element in the list.
+
+sig mapMatLoop : ((a) ~%~> b, Matrix(a)) ~%~> Matrix(b)
+fun mapMatLoop (f, m) {
+
+    fun outerloop(m){
+        switch(m){
+            case [] -> []
+            case row::m -> fun innerloop(row) {
+                switch(row){
+                    case [] -> []
+                    case r::row -> f(r)::innerloop(row)
+                }
+            }
+            innerloop(row)::outerloop(m)
+        }
+    }
+    outerloop(m)
+}
+
+sig mapMat : ( (a) -e-> b, Matrix(a)) -e-> Matrix(b) 
+fun mapMat(f,m){
+    map(curry(map)(f), m)
+}
+
+sig curry: ((a,b) -%-> c) -%-> ((a) -%-> (b) -%-> c)
+fun curry (f){
+    fun (a){
+        fun (b){
+            f(a,b)
+        }
+    }
+}
+
+
+sig inc: (Int) -> Int
+fun inc(x){
+    x+1
+}
+
+sig printIntMatrix: (Matrix(Int)) ~> ()
+fun printIntMatrix(m){
+    printMatrix(m, intToString)
+}
+
+sig printMatrix : (Matrix(a), (a) ~%~> String) ~> () 
+fun printMatrix(m, xToString){
+    print(matrixToString(m, xToString))
+}
+
+sig intersperse : (a, [a]) ~> [a]
+fun intersperse(y, xs){
+    switch(xs){
+        case [] -> []
+        case [x] -> [x]
+        case x::xs -> x::y::intersperse(y, xs)
+    }
+}
+
+sig matrixToString : (Matrix(a), (a) ~e~> String) ~e~> String
+fun matrixToString(m, xToString){
+    fun loop(m){
+        switch(m){
+            case [] -> ""
+            case row::m -> listToString(row, xToString) ^^ "\n" ^^ loop(m)
+        }
+    }
+    loop(m)
+    
+}
+
+sig stringCat : ([String]) ~> String
+fun stringCat(xs){
+    switch(xs){
+        case [] -> ""
+        case x::xs -> x ^^ stringCat(xs)
+    }
+}
+
+sig listToString : ([a], ((a) ~e~> String)) ~e~>  String 
+fun listToString(list, xToString){
+   "[" ^^ stringCat(intersperse(", ", map(xToString, list))) ^^ "]"
+}
+
+sig checkIfWonMatrix: (Matrix(a)) ~> Bool
+fun checkIfWonMatrix(m){
+    true
+}
+
+sig fold : ((a,b) ~e~> b, b, [a]) ~e~> b
+fun fold(f, acc, xs){
+    switch(xs){
+        case [] -> acc
+        case x::xs -> fold(f, f(x, acc), xs)
+    }
+}
+
+sig checkSameElements : (Int, [a], a) ~e~> Bool
+fun checkSameElements(acc, xs, a){
+    fun loop(acc, xs, a){
+        switch(xs){
+            case [] -> acc
+            case [x] -> acc
+            case x::xs -> loop(acc + zeroIfSame(x, a), xs, a)
+        }
+    }
+    if(loop(acc, xs, a) == 0) {true}
+    else {false}
+}
+
+sig zeroIfSame: (a, a) -> Int
+fun zeroIfSame(a, b){
+    if (a == b) {
+        0
+    } else {
+        1
+    }
+}

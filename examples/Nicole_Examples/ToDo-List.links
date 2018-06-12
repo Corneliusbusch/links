@@ -3,11 +3,13 @@
 
 typename Cmd = [|Add : String | Done : Int|];
 
+sig renderItemList : ([(Int, String)]) {hear: Cmd | %}~> ()
 fun renderItemList(items){
     var list = getNodeById("item-list");
     domReplaceChildren(itemsToXml(items), list)
 }
 
+sig todoProcess : ([(Int, String)], Int) {hear:Cmd|_}~> a
 fun todoProcess(prevList, nextId) client {
     var cmd = recv();
     var (items, nextId) = switch(cmd){
@@ -26,7 +28,7 @@ fun todoProcess(prevList, nextId) client {
 
 }
 
-
+sig itemsToXml : ([(Int, String)]) {hear:Cmd | %}~> Xml
 fun itemsToXml(items) client {
     var pid = self();
     <#>
@@ -43,15 +45,17 @@ fun itemsToXml(items) client {
     </#>
 }
 
+sig addNewItem : (String, Process( {hear : Cmd, wild:() |%} )) ~> ()
 fun addNewItem(item, pId) client {
     pId ! Add(item)
 }
 
+sig deleteItem : (Int, Process( {hear : Cmd, wild:() |%} )) ~> ()               
 fun deleteItem(id, pId) client {
     pId ! Done(id)
 }
 
-
+sig main_page : (_) ~> Page
 fun main_page(_) {
     var pId = spawnClient{todoProcess([], 0)};
 
@@ -165,11 +169,10 @@ fun main_page(_) {
     </html>
 }
 
+sig main : () ~> ()
 fun main() {
     addRoute("/", main_page);
 
-    #addStaticRoute("/", "", [("css", "text/css"),("js", "text/javascript")]);
-	#addStaticRoute("/css/", "css/", [("css", "text/css")])
     servePages()
 }
 

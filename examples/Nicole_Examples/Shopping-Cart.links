@@ -1,0 +1,203 @@
+# Shopping cart example
+
+typename Item = (name : String, quantity : Int, price : Float , id: Int);
+typename Option(a) = [| Some: a | None|];
+typename MaybeItem = Option(Item);
+typename Cmd = [|Update : (Int, Int) | Delete : Int |];
+typename ActionableItem(e::Eff) = (item:Item, action : () ~e~> ());
+
+var cartItems = [(name = "Apple", quantity = 5, price = 0.5, id = 0),
+            (name = "Lettuce", quantity = 1, price = 0.95, id = 1),
+            (name = "Water", quantity = 8, price = 0.2, id = 2),
+            (name = "Beef Steak", quantity = 2, price = 4.5, id = 3)];
+
+
+sig renderItemList : ([Item]) {hear: Cmd | %}~> ()
+fun renderItemList(items){
+    var node = getNodeById("content");
+    #var items = attachDeleteActionToItems(items, self());
+    domReplaceChildren(itemsToXml(items), node)
+}
+
+
+sig cartProcess : ([Item]) {hear:Cmd|%}~> ()
+fun cartProcess(content) client{
+    var cmd = recv();
+    switch(cmd){
+        case Update(id, qty)->{ print("Update") }
+        case Delete(id) -> { print("Delete") }
+    }
+}
+
+
+sig deleteItem : (Int, Process( {hear : Cmd, wild:() |%} ))~> ()               
+fun deleteItem(id, pId) client {
+    pId ! Delete(id)
+}
+
+fun attachDeleteActionToItems(items, pid) {
+    map(fun(item) {
+            var action = fun() {
+                deleteItem(item.id, pid)
+            };
+            attachActionToItem(item, action)
+    }, items)
+}
+
+fun attachActionToItem(item, action) {
+    (item=item, action=action)
+}
+
+#sig itemsToXml : ([ActionableItem({ |_})]) ~> Xml
+fun itemsToXml(items) client{
+    <#>
+        {
+            for (item <- items){
+                <div class="list-item  rounded-corners center">
+
+                    <div>
+                        <div class="item-name"> 
+                            {stringToXml(item.name)}
+                        </div>
+                        <div class="under-name">
+                            Unit Price: {floatToXml(item.price)}
+                            <button class="rounded-corners done-button" l:onclick="{()}"> Delete </button>
+                        </div>
+                        
+                    </div>
+                
+                    <div class="quantity">
+                          {intToXml(item.quantity)}  
+                    </div>
+                    <div class="total-price">
+                            {floatToXml(intToFloat(item.quantity) *. item.price)}
+                    </div>
+
+                </div>
+            }
+
+        }
+    </#>
+}
+
+sig main_page : (_) ~> Page
+fun main_page(_) {
+    var pId = spawnClient{cartProcess([])};
+    #var cartItems = attachDeleteActionToItems(cartItems, pId);
+    var cartContent = <#>
+        <div class="center">
+            {itemsToXml(cartItems)}
+        </div>
+    </#>;
+
+    page
+    <html>
+    <head>
+        <style>
+        body{{
+            font-size: 20px;
+            font-family: Bookman, sans-serif;
+        }}
+        .background{{
+            width: 80%;
+            max-width: 1200px; 
+            min-width: 300px;
+            background-color: #f3f2f4;
+            height: 100%;
+            margin-top: 1em;
+        }}
+        .top-heading{{
+            height: 5em;
+            min-height: 200px;
+            width: 90%;
+        }}
+        .top-heading img{{
+            height: 90%;
+            float: right;
+        }}
+        .top-heading p{{
+            font-size: 4em;
+            color: #3e0068;
+            float: left;
+            padding: 40px 20px;
+            vertical-align: middle;
+        }}
+        .centered-text{{
+            text-align: center;
+        }}
+        .center{{
+            margin: 0 auto;
+        }}
+        .margin-top{{
+            margin-top: 2em;
+        }}
+        .margin-20{{
+            margin: 1em;
+            margin-bottom: 0;
+        }}
+        .list-item{{
+            margin-top: .4em;
+            margin-bottom: .4em;
+            min-width: 300px;
+            width: 90%;
+            min-height: 2em;
+            background-color: #f2f2f2;
+            color: #010b19;
+            border: 1px solid #00a075;
+            padding: .3em 5%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }}
+        .input-field{{
+            width: 100%;
+            min-width: 300px;
+            min-height: 2em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            display: inline-block;
+            background-color: #f2f2f2;
+            color: #010b19;
+            padding: .2em 5%;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            font-size: 20px;
+            
+        }}
+        .rounded-corners{{
+            border-radius: 5px;
+        }}
+        .thin-grey{{
+            height: 1px;
+            border: 0;
+            width: 90%;
+            border-top: 2px solid #b8b8b8;
+            margin-top: 1em;
+            margin-bottom: 2em;
+            padding: 0;
+        }}
+        </style>
+    </head>
+        <body>
+            <div class="background center margin-top">
+                <div class="top-heading">
+                    <p class= "margin-20"> Shopping Cart </p>
+                    <img class="margin-20" src="http://www.clker.com/cliparts/X/U/F/3/N/2/shopping-cart-logo.svg.hi.png" alt="LOGO"/>
+                </div>
+                <hr class="thin-grey center"/>
+                <div id="content">
+                    {cartContent}
+                </div>
+            </div>
+        </body>
+    </html>
+}
+
+
+sig main: () ~> ()
+fun main() {
+    addRoute("/", main_page);
+    servePages()
+}
+
+main()

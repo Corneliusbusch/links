@@ -1,0 +1,15 @@
+sig curry: ((a,b) -%-> c) -%-> ((a) -%-> (b) -%-> c)
+fun curry (f){
+    fun (a){
+        fun (b){
+            f(a,b)
+        }
+    }
+}
+
+sig uncurry : ((a) -%-> (b) -%-> c) -%-> ((a,b) -%-> c)
+fun uncurry (f){
+    fun (a,b) {
+        f(a)(b)
+    }
+}
