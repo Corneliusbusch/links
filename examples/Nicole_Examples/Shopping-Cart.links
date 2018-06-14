@@ -1,8 +1,6 @@
 # Shopping cart example
 
 typename Item = (name : String, quantity : Int, price : Float , id: Int);
-typename Option(a) = [| Some: a | None|];
-typename MaybeItem = Option(Item);
 typename Cmd = [|Update : (Int, Int) | Delete : Int |];
 typename ActionableItem(e::Eff) = (item : Item, deleteAction : () ~e~> (), updateAction: () ~e~> ());
 
@@ -11,13 +9,11 @@ var cartItems = [(name = "Apple", quantity = 5, price = 0.5, id = 0),
             (name = "Water", quantity = 8, price = 0.2, id = 2),
             (name = "Beef Steak", quantity = 2, price = 4.5, id = 3)];
 
-
 sig renderItemList : ([ActionableItem({ |_})]) {hear: Cmd | %}~> ()
 fun renderItemList(items){
     var node = getNodeById("content");
     domReplaceChildren(itemsToXml(items), node)
 }
-
 
 sig cartProcess : ([ActionableItem({ |_})]) {hear:Cmd|%}~> ()
 fun cartProcess(content) client{
@@ -46,28 +42,37 @@ fun cartProcess(content) client{
 }
 
 
-sig deleteItem : (Int, Process( {hear : Cmd, wild:() |%} ))~> ()               
+sig deleteItem : (Int, Process( {hear : Cmd, wild:() |_} ))~> ()               
 fun deleteItem(id, pId) client {
     pId ! Delete(id)
 }
 
-sig isInt: (String) -> Bool
-fun isInt(n){
-    (n =~ /[0-9]+$/)
+sig isPosInt: (String) -> Bool
+fun isPosInt(n){
+    (n =~ /^[0-9]+$/)
+}
+
+fun isNegative(n) {
+  n =~ /-[0-9]+$/
 }
 
 sig updateItem : (Item, Process( {hear : Cmd, wild:() | %} )) ~%~> ()
 fun updateItem(item, pId) client{
     pId ! Update(item.id, getQuantityInput(item.id, item.quantity))
-    
 }
 
 sig getQuantityInput : (Int, Int) ~> Int
 fun getQuantityInput(id, prevQty) {
     var newQty = getInputValue("quantity-field-" ^^ intToString(id));
-    if(isInt(newQty)){
+    print(newQty);
+    #if (isPosInt(newQty)){
+    if (not(isNegative(newQty))){
+        print("Accepted");
         stringToInt(newQty)
-    } else{ prevQty }
+    } else{ 
+        print("Not Accepted");
+        prevQty 
+    }
 }
 
 sig attachActionToItems: ([Item], Process( {hear : Cmd, wild:() |%} )) ~%~>  [ActionableItem({ |_})]
@@ -83,26 +88,6 @@ fun attachActionToItems(items, pid){
     }, items)
 }
 
-#sig attachDeleteActionToItems: ([Item], %) ~%~> [ActionableItem({ |_})]
-#fun attachDeleteActionToItems(items, pid) {
-#    map(fun(item) {
-#            var action = fun() {
-#                deleteItem(item.id, pid)
-#            };%
-#            (item=item, deleteAction=action)
-#    }, items)
-#}
-
-#sig attachUpdateActionToItems: ([Item], %) ~%~> [ActionableItem({ |_})]
-#fun attachUpdateActionToItems(items, pid) {
-#    map(fun(item) {
-#            var action = fun() {
-#                updateItem(item.id, item.quantity, pid)
-#            };
-#            (item=item, updateAction=action)
-#    }, items)
-#}
-
 sig getNDecimals : (Float, Int) -> (Int)
 fun getNDecimals(f, n){
     floatToInt(
@@ -115,13 +100,23 @@ fun formatToPounds(n){
     "GBP " ^^ intToString(floatToInt(n)) ^^ "." ^^ intToString(getNDecimals(n, 2))
 }
 
+sig getTotalPrice : ([ActionableItem({ | _})]) ~%~> Float
+fun getTotalPrice(items){
+    fun loop(items, acc){
+        switch(items){
+            case [] -> acc
+            case item::items -> loop(items, acc +. (item.item.price *. intToFloat(item.item.quantity)))
+        }
+    }
+    loop(items, 0.0) 
+}
 
 sig itemsToXml : ([ActionableItem({ |_})]) ~> Xml
 fun itemsToXml(items){
     <#>
         {
             for ((item = item, deleteAction = deleteAction, updateAction = updateAction) <- items){
-                <div class="list-item  rounded-corners center">
+                <div class="list-item width-list rounded-corners center">
 
                     <div class="item-left">
                         <div class="item-name"> 
@@ -138,7 +133,7 @@ fun itemsToXml(items){
                             <input  type="text" value="{intToString(item.quantity)}" id="{"quantity-field-"^^intToString(item.id)}" class="input-field rounded-corners block center" />
                             <button class="rounded-corners update-button block center button" l:onclick="{updateAction()}"> Update </button>
                         </div>
-                        <div class="total-price">
+                        <div class="total-price block">
                                 <p>{stringToXml(formatToPounds(intToFloat(item.quantity) *. item.price))}</p>
                         </div>
                     </div>
@@ -146,13 +141,16 @@ fun itemsToXml(items){
             }
 
         }
+        <hr class="thin-grey center"/>
+        <div class="center width-list font-size-large final-price">
+            <p class="vertical-align text-align-right">Total Price: <span class="final">{stringToXml(formatToPounds(getTotalPrice(items)))}</span></p>
+        </div>
     </#>
 }
 
 sig main_page : (_) ~> Page
 fun main_page(_) {
     var pId = spawnClient{cartProcess(attachActionToItems(cartItems, self()))};
-    
 
     page
     <html>
@@ -193,10 +191,20 @@ fun main_page(_) {
         .center{{
             margin: 0 auto;
         }}
+        .font-size-large{{
+            font-size: 1.5em;
+        }}
+        .text-align-right{{
+            text-align: right;
+        }}
         .center-vertical{{
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
+        }}
+        .width-list{{
+           
+            width: 80%;
         }}
         .margin-top{{
             margin-top: 2em;
@@ -213,7 +221,6 @@ fun main_page(_) {
             color: #010b19;
             border: 1px solid #b8b8b8;
             padding: .2em 1.1em;
-            width: 80%;
             clear: both;
             overflow: hidden;
         }}
@@ -237,7 +244,6 @@ fun main_page(_) {
         .under-name p {{
             float: right;
         }}
-
         .button{{
             height: 30px;
             width: 55px;
@@ -263,6 +269,15 @@ fun main_page(_) {
             left: 50%;
             text-align:center;
             line-height:0;
+        }}
+        .final-price{{
+            padding: 0 1.1em;
+        }}
+        .final {{
+            width: 25%;
+            min-width: 50px;
+            overflow: hidden;
+            padding: 1em;
         }}
         .quantity{{
             width: 50%;
