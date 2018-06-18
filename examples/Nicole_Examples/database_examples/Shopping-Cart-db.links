@@ -13,6 +13,7 @@ fun getProducts() server{
         for (p <-- products)
             for (c <-- cart)
                 where (p.pid == c.pid) 
+                orderby (p.product)
                     [(id = p.pid, name = p.product, price = p.price, quantity = c.qty)]         
     }
 }
@@ -25,7 +26,7 @@ fun renderItemList(){
     itemsToXml(items)
 }
 
-fun updateListView(){
+fun updateListView() client{
     var items = getProducts();
     var node = getNodeById("content");
     domReplaceChildren(itemsToXml(items), node)
@@ -48,14 +49,13 @@ fun isPosInt(n){
     (n =~ /^[0-9]+$/)
 }
 
-fun isNegative(n) {
+fun isNegative(n) server{
   n =~ /-[0-9]+$/
 }
 
 sig updateItem: (Item) ~> ()
 fun updateItem(item) server{
     var newQty = getQuantityInput(item.id, item.quantity);
-    print(intToString(newQty));
     updateQty(item.id, newQty);
     updateListView()
 }
@@ -70,13 +70,13 @@ fun updateQty(id, qty) server{
 sig getQuantityInput : (Int, Int) ~> Int
 fun getQuantityInput(id, prevQty) {
     var newQty = getInputValue("quantity-field-" ^^ intToString(id));
-    print(newQty);
+    #print("input: " ^^ newQty);
     #if (isPosInt(newQty)){
-    if (not(isNegative(newQty))){
-        print("Accepted");
+    if (not (isNegative(newQty))){
+        #print("Accepted");
         stringToInt(newQty)
     } else{ 
-        print("Not Accepted");
+        #print("Not Accepted");
         prevQty 
     }
 }
@@ -125,7 +125,7 @@ fun itemsToXml(items){
 
                     <div class="item-right">
                         <div class="quantity">
-                            <input  type="text" value="{intToString(item.quantity)}" id="{"quantity-field-"^^intToString(item.id)}" class="input-field rounded-corners block center" />
+                            <input type="text" value="{intToString(item.quantity)}" id="{"quantity-field-" ^^ intToString(item.id)}" class="input-field rounded-corners block center" />
                             <button class="rounded-corners update-button block center button" l:onclick="{updateItem(item)}"> Update </button>
                         </div>
                         <div class="total-price block">
