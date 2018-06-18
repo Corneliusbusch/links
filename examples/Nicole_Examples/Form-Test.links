@@ -1,0 +1,38 @@
+sig printInput : (String) ~> ()
+fun printInput(input) {
+    print(input)
+}
+
+sig main_page : (_) ~> Page
+fun main_page(_) {
+
+    page
+    <html>
+        <body>
+            <div id="content">
+                <input type="text"/>
+                <button l:onclick="{print("Clicked")}"> Update </button>
+
+                <form l:onsubmit="{printInput(newItem)}">
+                    <input type="text" l:name="newItem"/>
+                    <button type="submit"> Update </button>
+                </form>
+
+                <form l:onsubmit="{print("Clicked")}">
+                    <input type="text" l:name="newItem"/>
+                    <input type="submit"/>             
+                </form>
+            </div>
+        </body>
+    </html>
+}
+
+#<form l:onsubmit="{printInput(newItem)}">
+
+sig main: () ~> ()
+fun main() {
+    addRoute("/", main_page);
+    servePages()
+}
+
+main()
