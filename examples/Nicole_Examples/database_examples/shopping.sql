@@ -6,25 +6,25 @@ CREATE TABLE Products (
 );
 
 INSERT INTO Products(pid, product, price) VALUES 
-    (0001, 'Strawberries', 1.49),
-    (0002, 'Blueberries', 2),
-    (0003, 'Banana', 0.22),
-    (0004, 'Water', 0.44),
-    (0005, 'Lettuce', 0.5),
-    (0006, 'Chicken Breast Fillet', 3.69),
-    (0007, 'Ballon', 1.0),
-    (0008, 'Screw', 0.2),
-    (0009, 'Camera', 449.99),
-    (0010, 'Shoe Lace', 2.99),
-    (0011, 'Blanket', 29.99),
-    (0012, 'Apple', 0.5),
-    (0013, 'Chocolate Cake', 2.79),
-    (0014, 'Rye Bread', 1.89),
-    (0015, 'Full Fat Soft Cheese', 2.00),
-    (0016, 'Light Soft Cheese', 2.10),
-    (0017, 'Potted Rose Plant', 3.99),
-    (0018, 'Basil', 0.7),
-    (0019, 'Red Peppers', 0.6);
+    (1, 'Strawberries', 1.49),
+    (2, 'Blueberries', 2),
+    (3, 'Banana', 0.22),
+    (4, 'Water', 0.44),
+    (5, 'Lettuce', 0.5),
+    (6, 'Chicken Breast Fillet', 3.69),
+    (7, 'Ballon', 1.0),
+    (8, 'Screw', 0.2),
+    (9, 'Camera', 449.99),
+    (10, 'Shoe Lace', 2.99),
+    (11, 'Blanket', 29.99),
+    (12, 'Apple', 0.5),
+    (13, 'Chocolate Cake', 2.79),
+    (14, 'Rye Bread', 1.89),
+    (15, 'Full Fat Soft Cheese', 2.00),
+    (16, 'Light Soft Cheese', 2.10),
+    (17, 'Potted Rose Plant', 3.99),
+    (18, 'Basil', 0.7),
+    (19, 'Red Peppers', 0.6);
 
 
 CREATE TABLE Cart (
