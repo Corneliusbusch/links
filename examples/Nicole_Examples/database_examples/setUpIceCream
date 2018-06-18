@@ -1,0 +1,15 @@
+#!/bin/bash
+
+#dropdb -U nme -h localhost ice-cream
+#createdb -O nme ice-cream
+#psql -U nme -h localhost -d ice-cream.sql < ice-cream
+
+#!/bin/bash
+for f in `ls *.sql`; do
+    dropdb -U nme -h localhost ${f%.sql}
+    createdb -O nme ${f%.sql};
+done
+for f in `ls *.sql`; do psql -U nme -h localhost -d ${f%.sql} < $f; done
+
+
+

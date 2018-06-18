@@ -1,0 +1,338 @@
+# Shopping cart example
+
+typename Item = (name : String, quantity : Int, price : Float , id: Int);
+typename Cmd = [|Update : (Int, Int) | Delete : Int |];
+
+var db = database "shopping";
+var products = table "Products" with (pid : Int, product : String, price: Float) from db;
+var cart = table "Cart" with (pid : Int, qty: Int) from db;
+
+sig getProducts: () -> [Item]
+fun getProducts() server{
+    query{
+        for (p <-- products)
+            for (c <-- cart)
+                where (p.pid == c.pid) 
+                    [(id = p.pid, name = p.product, price = p.price, quantity = c.qty)]         
+    }
+}
+
+sig renderItemList: () ~> Xml
+fun renderItemList(){
+    var items = getProducts();
+    #var node = getNodeById("content");
+    #domReplaceChildren(itemsToXml(items), node)
+    itemsToXml(items)
+}
+
+fun updateListView(){
+    var items = getProducts();
+    var node = getNodeById("content");
+    domReplaceChildren(itemsToXml(items), node)
+}
+
+sig deleteItem : (Int) ~%~> ()              
+fun deleteItem(pid){
+    deleteFromDB(pid);
+    updateListView()
+}
+
+sig deleteFromDB: (Int) ~> ()
+fun deleteFromDB(id) server{
+    delete (c <-- cart)
+        where (c.pid == id)
+}
+
+sig isPosInt: (String) -> Bool
+fun isPosInt(n){
+    (n =~ /^[0-9]+$/)
+}
+
+fun isNegative(n) {
+  n =~ /-[0-9]+$/
+}
+
+sig updateItem: (Item) ~> ()
+fun updateItem(item) server{
+    var newQty = getQuantityInput(item.id, item.quantity);
+    print(intToString(newQty));
+    updateQty(item.id, newQty);
+    updateListView()
+}
+
+sig updateQty: (Int, Int) ~> ()
+fun updateQty(id, qty) server{
+    update (c <-- cart)
+        where (c.pid == id)
+        set (pid = c.pid, qty = qty)
+}
+
+sig getQuantityInput : (Int, Int) ~> Int
+fun getQuantityInput(id, prevQty) {
+    var newQty = getInputValue("quantity-field-" ^^ intToString(id));
+    print(newQty);
+    #if (isPosInt(newQty)){
+    if (not(isNegative(newQty))){
+        print("Accepted");
+        stringToInt(newQty)
+    } else{ 
+        print("Not Accepted");
+        prevQty 
+    }
+}
+
+sig getNDecimals : (Float, Int) -> (Int)
+fun getNDecimals(f, n){
+    floatToInt(
+        (f -. intToFloat(floatToInt(f))) *. intToFloat(10^n)
+    )
+}
+
+
+sig formatToPounds : (Float) -> String
+fun formatToPounds(n){
+    "GBP " ^^ intToString(floatToInt(n)) ^^ "." ^^ intToString(getNDecimals(n, 2))
+}
+
+sig getTotalPrice : ([Item]) ~> Float
+fun getTotalPrice(items){
+    fun loop(items, acc){
+        switch(items){
+            case [] -> acc
+            case item::items -> loop(items, acc +. (item.price *. intToFloat(item.quantity)))
+        }
+    }
+    loop(items, 0.0) 
+}
+
+sig itemsToXml : ([Item]) ~> Xml
+fun itemsToXml(items){
+    var empty = (items == []);
+    <#>
+        {
+            for (item <- items){
+                <div class="list-item width-list rounded-corners center">
+
+                    <div class="item-left">
+                        <div class="item-name"> 
+                            {stringToXml(item.name)}
+                        </div>
+                        <div class="under-name">
+                            <button class="rounded-corners delete-button button vertical-align" l:onclick="{deleteItem(item.id)}"> Delete </button>
+                            <p class="font-10 vertical-align">Unit Price: {stringToXml(formatToPounds(item.price))}</p>
+                        </div>
+                    </div>
+
+                    <div class="item-right">
+                        <div class="quantity">
+                            <input  type="text" value="{intToString(item.quantity)}" id="{"quantity-field-"^^intToString(item.id)}" class="input-field rounded-corners block center" />
+                            <button class="rounded-corners update-button block center button" l:onclick="{updateItem(item)}"> Update </button>
+                        </div>
+                        <div class="total-price block">
+                                <p>{stringToXml(formatToPounds(intToFloat(item.quantity) *. item.price))}</p>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+            
+        {
+
+            if(empty){
+                <p class="center width-list">{stringToXml("The shopping cart is empty.")}</p>
+            } else{
+                <#>
+                    <hr class="thin-grey center"/>
+                    <div class="center width-list font-size-large final-price">
+                        <p class="vertical-align text-align-right">Total Price: <span class="final">{stringToXml(formatToPounds(getTotalPrice(items)))}</span></p>
+                    </div>
+                </#>
+            }
+        }
+
+    </#>
+}
+
+sig main_page : (_) ~> Page
+fun main_page(_) {
+    page
+    <html>
+    <head>
+        <style>
+        body{{
+            font-size: 20px;
+            font-family: Bookman, sans-serif;
+            color: #3e0068;
+        }}
+        .background{{
+            width: 80%;
+            max-width: 1200px; 
+            min-width: 300px;
+            background-color: #f3f2f4;
+            height: auto;
+            min-height: 100%;
+            margin-top: 1em;
+        }}
+        .top-heading{{
+            height: 5em;
+            min-height: 200px;
+            width: 75%;
+            margin: 1em auto;
+        }}
+        .top-heading img{{
+            height: 90%;
+            float: right;
+        }}
+        .top-heading p{{
+            font-size: 4em;
+            float: left;
+            width: 71%;
+            line-height: 100%;
+        }}
+        .centered-text{{
+            text-align: center;
+        }}
+        .center{{
+            margin: 0 auto;
+        }}
+        .font-size-large{{
+            font-size: 1.5em;
+        }}
+        .text-align-right{{
+            text-align: right;
+        }}
+        .center-vertical{{
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }}
+        .width-list{{
+           
+            width: 80%;
+        }}
+        .margin-top{{
+            margin-top: 2em;
+        }}
+        .font-10{{
+            font-size: 15px;
+        }}
+        .block{{
+            display: block;
+        }}
+        .list-item{{
+            min-height: 2em;
+            background-color: #ffffff;
+            color: #010b19;
+            border: 1px solid #b8b8b8;
+            padding: .2em 1.1em;
+            clear: both;
+            overflow: hidden;
+        }}
+        .item-left{{
+            width: 50%;
+            float: left;
+        }}
+        .item-right{{
+            margin-top: 1.5em;
+            width: 50%;
+            float: right;
+        }}
+        .item-name{{
+            padding: .2em;
+            line-height:2em;
+            font-size: 1.5em;
+        }}
+        .under-name{{
+            overflow: hidden;
+        }}
+        .under-name p {{
+            float: right;
+        }}
+        .button{{
+            height: 30px;
+            width: 55px;
+        }}
+        .delete-button{{
+            margin-top: 12px;
+            float: left;
+            background-color: #fca22d;
+            height: 20px;
+        }}
+        .update-button{{
+            margin-top: 18px;
+            background-color: #3e0068;
+            color: #ffffff;
+        }}
+        .total-price{{
+            width: 50%;
+            float: right;
+            position: relative;
+        }}
+        .total-price p{{
+            top: 50%;
+            left: 50%;
+            text-align:center;
+            line-height:0;
+        }}
+        .final-price{{
+            padding: 0 1.1em;
+            padding-bottom: 1em;
+        }}
+        .final {{
+            width: 25%;
+            min-width: 50px;
+            overflow: hidden;
+            padding: 1em;
+        }}
+        .quantity{{
+            width: 50%;
+            float: left;  
+        }}
+        .input-field{{
+            margin-bottom: 10px;
+            margin-top: 8px;
+            background-color: #f2f2f2;
+            color: #010b19;
+            padding: .1em 2%;
+            border: 1px solid #ccc;
+            font-size: 15px;
+            width: 30%;
+            min-width: 55px;
+        }}
+        .rounded-corners{{
+            border-radius: 5px;
+        }}
+        .thin-grey{{
+            height: 1px;
+            border: 0;
+            width: 90%;
+            border-top: 1px solid #b8b8b8;
+            margin-top: 1em;
+            margin-bottom: 2em;
+            padding: 0;
+        }}
+        </style>
+    </head>
+        <body>
+            <div class="background center margin-top">
+                <div class="top-heading">
+                    <p class= ""> Shopping Cart </p>
+                    <img class="" src="http://www.clker.com/cliparts/X/U/F/3/N/2/shopping-cart-logo.svg.hi.png" alt="LOGO"/>
+                </div>
+                <hr class="thin-grey center"/>
+                <div id="content">
+                   {renderItemList()}
+                </div>
+            </div>
+        </body>
+    </html>
+}
+
+
+sig main: () ~> ()
+fun main() {
+    addRoute("/", main_page);
+    servePages()
+}
+
+main()
