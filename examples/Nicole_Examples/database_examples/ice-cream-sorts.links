@@ -1,0 +1,53 @@
+
+var db = database "ice-cream";
+var sorts = table "Sorts" with (name : String) from db;
+
+sig renderSorts: () ~%~> Xml
+fun renderSorts() server{
+    #var node = getNodeById("all-sorts");
+    var sorts = map(fun(s){
+        s.name
+    }, getSorts());
+    #domReplaceChildren(sortsToXml(sorts), node) 
+    sortsToXml(sorts)
+}
+
+fun getSorts() server{
+    query{
+        for(sort <-- sorts){
+            [sort]
+        }
+    }
+}
+
+fun sortsToXml(sorts) server{
+    <#>
+        {
+            for (sort <- sorts){
+                {stringToXml(sort)}
+            }
+        }
+    </#>
+}
+
+sig main_page : (_) ~> Page
+fun main_page(_) {
+    page
+    <html>
+        <body>
+            <div id="all-sorts">
+                
+                {renderSorts()}                
+            </div>
+        </body>
+    </html>
+}
+
+
+sig main: () ~> ()
+fun main() {
+    addRoute("/", main_page);
+    servePages()
+}
+
+main()
