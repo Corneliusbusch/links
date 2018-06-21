@@ -1,0 +1,172 @@
+# Implementing references with effects
+
+sig countdown: () {Get : Int, Put: (Int) -> () |e}~> Int
+fun countdown(){
+    var n = do Get;
+    print(intToString(n));
+    if (n <= 0) n
+    else {
+        do Put(n-1);
+        countdown()
+    }
+}
+
+sig runState: ( () {Get:Int, Put: (Int)-> () |e}~> Int, Int ) {Get-, Put- |e}~> (Int, Int)
+fun runState(f, st){
+    var g = handle(f()){
+        case Return(x) -> fun(st) { (x,st)}
+        case Get(resume) -> fun(st) { resume(st)(st)}
+        case Put(st, resume) -> fun(_) { resume(())(st)}
+    };
+    g(st)
+}
+
+#runState : (() {Get:Int, Put: (Int) -> () |e}~> a) -> ((s) -> (a, s))
+#runState : (() {Get:Int, Put: (Int) -> () |e}~> a, s) -> (a, s)
+
+sig evalState: ( () {Get:Int, Put: (Int) -> () |e}~> Int, Int) {Get-, Put- |e}~> (Int, Int)
+fun evalState(f, st0){
+    handle(f()) (st0 -> st){
+        case Return(x) -> (x, st)
+        case Get(resume) -> resume(st, st)
+        case Put(st1, resume) -> resume((), st1)
+    }
+} 
+
+sig loop3Times: () {Get:Int, Put: (Int) -> () |e}~> Int
+fun loop3Times(){
+    var st0 = 5;
+    fun loop(i){
+        if (i <= 0) {
+            print("Done"); 
+            0
+        }
+        else{
+            var st1 = do Get;
+            print(intToString(st1));
+            if(st1 <= 0) {
+                do Put(st0);
+                loop(i-1)
+            }
+            else{
+                do Put(st1-1);
+                loop(i)
+            }
+        }
+    }
+    loop(3)
+}
+
+sig loopNTimes: (Int, Int) {Get:Int, Put: (Int) -> () |e}~> ()
+fun loopNTimes(n, st){
+    var st0 = st;
+    fun loop(i){
+        if (i <= 0) {
+            print("Done")
+        }
+        else{
+            var st1 = do Get;
+            print(intToString(st1));
+            if(st1 <= 0) {
+                do Put(st0);
+                loop(i-1)
+            }
+            else{
+                do Put(st1-1);
+                loop(i)
+            }
+        }
+    }
+    loop(n)
+}
+
+sig evalStateLoop: ( (Int, Int) {Get:Int, Put: (Int) -> () |e}~> (), Int, Int) {Get-, Put- |e}~> ((), Int)
+fun evalStateLoop(f, n, st0){
+    handle(f(n, st0)) (st0 -> st){
+        case Return(x) -> (x, st)
+        case Get(resume) -> resume(st, st)
+        case Put(st1, resume) -> resume((), st1)
+
+    }
+}
+
+sig runStateLoop: ( (Int, Int) {Get:Int, Put: (Int) -> () |e}~> (), Int, Int) {Get-, Put- |e}~> ((), Int)
+fun runStateLoop(f, n, st0){
+    var g = handle(f(n, st0)){
+        case Return(x) -> fun(st){(x,st)}
+        case Get(resume) -> fun(st) { resume(st) (st)}
+        case Put(st1, resume) -> fun(st) {resume(())(st1)}
+    };
+    g(st0)
+}
+
+sig loopNTimesPrint: (Int, Int) {Get:Int, Put: (Int) -> (), PrintCurrent: () |e}~> ()
+fun loopNTimesPrint(n, st){
+    var st0 = st;
+    fun loop(i){
+        if (i <= 0) {
+            print("Done")
+        }
+        else{
+            do PrintCurrent;
+            var st1 = do Get;
+            if(st1 <= 0) {
+                do Put(st0);
+                loop(i-1)
+            }
+            else{
+                do Put(st1-1);
+                loop(i)
+            }
+        }
+    }
+    loop(n)
+}
+
+#sig evalStateLoopPrint: ( (Int, Int) {Get:Int, Put: (Int) -> (), PrintCurrent: (),  PrintReverse: () |e}~> (), Int, Int) {Get-, Put-, PrintCurrent:(), PrintReverse- |e}~> ((), Int)
+#sig evalStateLoopPrint: ( (Int, Int) {Get:Int, Put: (Int) -> (), PrintCurrent: () |e}~> (), Int, Int) {Get-, Put-, PrintCurrent- |e}~> ((), Int)
+fun evalStateLoopPrint(f, n, st0){
+    handle(f(n, st0)) (st0 -> st){
+        case Return(x) -> (x, st)
+        case Get(resume) -> resume(st, st)
+        case Put(st1, resume) -> resume((), st1)
+        case PrintCurrent(resume) -> print(intToString(st)); resume((), st)
+        #case PrintReverse(resume) -> resume((), st); do PrintCurrent 
+    }
+}
+
+#sig runStateLoopPrint: ( (Int, Int) {Get:Int, Put: (Int) -> (), PrintCurrent: (), PrintReverse: ()|e}~> (), Int, Int) {Get-, Put-, PrintCurrent:(), PrintReverse- |e}~> ((), Int)
+sig runStateLoopPrint: ( (Int, Int) {Get:Int, Put: (Int) -> (), PrintCurrent: () |e}~> (), Int, Int) {Get-, Put-, PrintCurrent- |e}~> ((), Int)
+fun runStateLoopPrint(f, n, st0){
+    var g = handle(f(n, st0)){
+        case Return(x) -> fun(st) { (x,st) }
+        case Get(resume) -> fun(st) { resume(st) (st) }
+        case Put(st1, resume) -> fun(st) { resume(())(st1) }
+        case PrintCurrent(resume) -> fun(st){ print(intToString(st)); resume(())(st) }
+        #case PrintReverse(resume) -> fun(st){ resume(())(st); do PrintCurrent}
+    };
+    g(st0)
+}
+
+sig loopNTimesReverse: (Int, Int) {Get:Int, Put: (Int) -> (), PrintReverse: () |e}~> ()
+fun loopNTimesReverse(n, st){
+    var st0 = st;
+    fun loop(i){
+        if (i <= 0) {
+            print("Done")
+        }
+        else{
+            do PrintReverse;
+            var st1 = do Get;
+            if(st1 <= 0) {
+                do Put(st0);
+                loop(i-1)
+            }
+            else{
+                do Put(st1-1);
+                loop(i)
+            }
+        }
+    }
+    loop(n)
+}
