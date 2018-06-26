@@ -1,0 +1,101 @@
+# Reproducing Nim
+
+typename Player = [|Alice|Bob|];
+
+sig move: (Player, Int) {Move:(Player, Int) -> Int}~> Int
+fun move(pl, n){
+    do Move(pl, n)
+}
+
+fun game(n){
+    #ranStr(aliceTurn,n)
+    pp(aliceTurn,n)
+}
+
+sig aliceTurn: (Int) {Move: (Player, Int) -> Int}~> Player
+fun aliceTurn(n){
+    if(n<= 0){
+        print("Alice Won!");
+        Alice
+    } else{
+        var rest = move(Alice, n);
+        print("Alice takes "^^ intToString(n-rest) ^^ ".");
+        bobTurn(rest)
+    }
+}
+
+sig bobTurn: (Int) {Move: (Player, Int) -> Int}~> Player
+fun bobTurn(n){
+    if(n<= 0){
+        print("Bob Won!");
+        Bob
+    } else{
+        var rest = move(Bob, n);
+        print("Bob takes "^^ intToString(n-rest) ^^ ".");
+        aliceTurn(rest)
+    }
+}
+
+sig validMoves : (Int) -> [Int]
+fun validMoves(n)
+ { filter(fun(m) {m <= n}, [1,2,3]) }
+
+sig chooseRandom: ([Int]) ~> Int
+fun chooseRandom(numbers){
+    switch(numbers){
+        case [] -> 0
+        case [x] -> x
+        case x::xs -> fun loop(xs, n, ret){
+                        switch(xs){
+                            case [] -> ret
+                            case x::xs -> {
+                                var rand = random();
+                                print("rand: "^^ floatToString(rand) ^^ " and p: " ^^ floatToString(intToFloat(1) /. intToFloat(n+1)));
+                                if(rand <= intToFloat(1) /. intToFloat(n+1)){
+                                    loop(xs, n+1, x)
+                                } else{
+                                    loop(xs, n+1, ret)
+                                }
+                            }
+                        }
+                    }
+                    loop(xs, 1, 1)
+    }
+}
+
+
+#handlers
+
+
+#sig pp : (Comp({Move:(Player,Int) {}-> Int|e}, a)) ->
+#          Comp({Move-                     |e}, a)
+#fun pp(m)() {
+#  handle(m()) {
+#    case Return(x)   -> x
+#    case Move(p,n,k) -> k(maximum(1, n `mod` 4)) }}
+
+sig ranStr: ((Int) {Move: (Player, Int) -> Int |e}~> Player, Int) {Move- |e}~> Player
+fun ranStr(f, n){
+    handle(f(n)){
+        case Return(x) -> x
+        case Move(pl, n, resume) -> resume(n-(chooseRandom(validMoves(n))))
+    }
+}
+
+sig alwaysOne: ((Int) {Move: (Player, Int) -> Int |e}~> Player, Int) {Move- |e}~> Player
+fun alwaysOne(f, n){
+    handle(f(n)){
+        case Return(x) -> x
+        case Move(pl, n, resume) -> resume(n-1)
+    }
+}
+
+sig pp: ((Int) {Move: (Player, Int) -> Int |e}~> Player, Int) {Move- |e}~> Player
+fun pp(f, n){
+    handle(f(n)){
+        case Return(x) -> x
+        case Move(pl, n, resume) -> resume(n -(maximum(1, (n-1) `mod` 4 )))
+    }
+}
+
+game(7)
