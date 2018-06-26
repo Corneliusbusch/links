@@ -1,0 +1,327 @@
+#Nim web example
+
+typename Player = [|Alice|Bob|You|];
+typename Level = [|Easy|Medium|Hard|];
+
+sig playerToString: (Player) -> String
+fun playerToString(pl){
+    switch(pl){
+        case Bob -> "Bob"
+        case Alice -> "Alice"
+        case You -> "You"
+    }
+}
+
+sig playGame: (Player, Player, Int) ~%~> ()
+fun playGame(pl1, pl2, n){
+    var winner = switch(pl1){
+        case(You) -> game(pl2, n)
+        case(Bob) -> game(pl2, n)
+        case(Alice) -> game(pl2, n)
+    };
+    print( "The winner is " ^^ playerToString(winner))
+}
+
+
+sig move: (Player, Int) {Move:(Player, Int) -> Int}~> Int
+fun move(pl, n){
+    do Move(pl, n)
+}
+
+sig game: (Player, Int) -%-> %
+fun game(pl,n){
+    #ranStr(aliceTurn,n)
+    pp(aliceTurn, pl, n)
+}
+
+sig aliceTurn: (Player, Int) {Move: (Player, Int) -> Int}~> Player
+fun aliceTurn(pl, n){
+    if(n<= 0){
+        print("Alice Won!");
+        Alice
+    } else{
+        var rest = move(Alice, n);
+        print("Alice takes "^^ intToString(n-rest) ^^ ".");
+        switch(pl){
+            case Bob -> bobTurn(Alice, rest)
+            case You -> yourTurn(Alice, rest)
+        } 
+    }
+}
+
+sig bobTurn: (Player, Int) {Move: (Player, Int) -> Int}~> Player
+fun bobTurn(pl, n){
+    if(n<= 0){
+        print("Bob Won!");
+        Bob
+    } else{
+        var rest = move(Bob, n);
+        print("Bob takes "^^ intToString(n-rest) ^^ ".");
+        switch(pl){
+            case Alice -> aliceTurn(Bob, rest)
+            case You -> yourTurn(Bob, rest)
+        }
+    }
+}
+
+sig yourTurn: (Player, Int) {Move: (Player, Int) -> Int}~> Player
+
+
+sig validMoves : (Int) -> [Int]
+fun validMoves(n)
+ { filter(fun(m) {m <= n}, [1,2,3]) }
+
+sig chooseRandom: ([Int]) ~> Int
+fun chooseRandom(numbers){
+    switch(numbers){
+        case [] -> 0
+        case [x] -> x
+        case x::xs -> fun loop(xs, n, ret){
+                        switch(xs){
+                            case [] -> ret
+                            case x::xs -> {
+                                var rand = random();
+                                print("rand: "^^ floatToString(rand) ^^ " and p: " ^^ floatToString(intToFloat(1) /. intToFloat(n+1)));
+                                if(rand <= intToFloat(1) /. intToFloat(n+1)){
+                                    loop(xs, n+1, x)
+                                } else{
+                                    loop(xs, n+1, ret)
+                                }
+                            }
+                        }
+                    }
+                    loop(xs, 1, 1)
+    }
+}
+
+fun setPlayers(pl1, pl2){
+    do Set(pl1,pl2)
+}
+
+#handlers
+
+sig playerLoop: ( () {Get:(Player,Player), Set:(Player, Player) -> () | e}~> (), Player, Player) {Get-, Set- | e}~> ((), (Player, Player))
+fun playerLoop(f, pl1, pl2){
+    handle(f()) (pl1 -> pl1, pl2 -> pl2){
+        case Return(x) -> (x, (pl1, pl2))
+        case Get(resume) -> resume((pl1, pl2), (pl1, pl2))
+        case Set(pl1, pl2, resume) -> resume((), (pl1, pl2))
+    }
+}
+
+
+sig ranStr: ((Player, Int) {Move: (Player, Int) -> Int |e}~> Player, Player, Int) {Move- |e}~> Player
+fun ranStr(f,pl, n){
+    handle(f(pl, n)){
+        case Return(x) -> x
+        case Move(pl, n, resume) -> resume(n-(chooseRandom(validMoves(n))))
+    }
+}
+
+sig alwaysOne: ((Player, Int) {Move: (Player, Int) -> Int |e}~> Player, Player, Int) {Move- |e}~> Player
+fun alwaysOne(f, pl, n){
+    handle(f(pl, n)){
+        case Return(x) -> x
+        case Move(pl, n, resume) -> resume(n-1)
+    }
+}
+
+sig pp: ((Player, Int) {Move: (Player, Int) -> Int |e}~> Player, Player, Int) {Move- |e}~> Player
+fun pp(f, pl, n){
+    handle(f(pl, n)){
+        case Return(x) -> x
+        case Move(pl, n, resume) -> resume(n -(maximum(1, (n-1) `mod` 4 )))
+    }
+}
+
+
+
+sig main_page : (_) ~> Page
+fun main_page(_) {
+    page
+    <html>
+    <head>
+        <style>
+        body{{
+            font-size: 20px;
+            font-family: Bookman, sans-serif;
+            color: #3e0068;
+        }}
+        .background{{
+            width: 80%;
+            max-width: 1200px;
+            min-width: 300px;
+            background-color: #f4f4f4;
+            min-height: 100%;
+        }}
+        .top-heading{{
+            padding-top: 1em;
+            width: 75%;
+            font-size: 3em;
+            line-height: 0;
+            color: #c4005e;
+            font-weight: bold;
+        }}
+        .centered-text{{
+            text-align: center;
+        }}
+        .center{{
+            margin: 0 auto;
+        }}
+        .font-size-large{{
+            font-size: 1.5em;
+        }}
+        .text-align-right{{
+            text-align: right;
+        }}
+        .center-vertical{{
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }}
+        .width-list{{
+            width: 80%;
+        }}
+
+        .font-10{{
+            font-size: 15px;
+        }}
+        .block{{
+            display: block;
+        }}
+        .list-item{{
+            min-height: 2em;
+            background-color: #ffffff;
+            color: #010b19;
+            border: 1px solid #b8b8b8;
+            padding: .2em 1.1em;
+            clear: both;
+            overflow: hidden;
+        }}
+        .item-left{{
+            width: 50%;
+            float: left;
+        }}
+        .item-right{{
+            margin-top: 1.5em;
+            width: 50%;
+            float: right;
+        }}
+        .item-name{{
+            padding: .2em;
+            line-height:2em;
+            font-size: 1.5em;
+        }}
+        .under-name{{
+            overflow: hidden;
+        }}
+        .under-name p {{
+            float: right;
+        }}
+        .button{{
+            height: 30px;
+            width: 55px;
+        }}
+        .delete-button{{
+            margin-top: 12px;
+            float: left;
+            background-color: #fca22d;
+            height: 20px;
+        }}
+        .update-button{{
+            margin-top: 18px;
+            background-color: #3e0068;
+            color: #ffffff;
+        }}
+        .total-price{{
+            width: 50%;
+            float: right;
+            position: relative;
+        }}
+        .total-price p{{
+            top: 50%;
+            left: 50%;
+            text-align:center;
+            line-height:0;
+        }}
+        .final-price{{
+            padding: 0 1.1em;
+            padding-bottom: 1em;
+        }}
+        .final {{
+            width: 25%;
+            min-width: 50px;
+            overflow: hidden;
+            padding: 1em;
+        }}
+        .quantity{{
+            width: 50%;
+            float: left;  
+        }}
+        .input-field{{
+            margin-bottom: 10px;
+            margin-top: 8px;
+            background-color: #f2f2f2;
+            color: #010b19;
+            padding: .1em 2%;
+            border: 1px solid #ccc;
+            font-size: 15px;
+            width: 30%;
+            min-width: 55px;
+        }}
+        .rounded-corners{{
+            border-radius: 5px;
+        }}
+        .thin-grey{{
+            height: 1px;
+            border: 0;
+            width: 90%;
+            border-top: 1px solid #b8b8b8;
+            margin-top: 1em;
+            margin-bottom: 2em;
+            padding: 0;
+        }}
+        </style>
+    </head>
+        <body>
+            <div class="background center">
+                <div class="top-heading center">
+                    <p> The Game of Nim </p>
+                </div>
+                <hr class="thin-grey center"/>
+                <div id="choose-strategy" class="choose-strategy width-list center">
+                    <form l:onsubmit="{playGame(Alice, Bob, 8)}">
+                        <p> Choose your Match: </p>
+                        <div class="list-item">
+                            <button class="rounded-corners update-button block center button" l:onclick="{setPlayers(You, Alice)}"> Challenge Alice </button>
+                            <button class="rounded-corners update-button block center button" l:onclick="{setPlayers(You, Bob)}"> Challenge Bob </button>
+                            <button class="rounded-corners update-button block center button" l:onclick="{setPlayers(Alice, Bob)}"> Watch Alice and Bob </button>
+                        </div>
+                        <p> Choose your level of challenge:</p>
+                            <button class="rounded-corners update-button block center button" l:onclick="{var level = Easy; print("Easy")}"> Easy </button>
+                            <button class="rounded-corners update-button block center button" l:onclick="{var level = Medium; print("Medium")}"> Medium </button>
+                            <button class="rounded-corners update-button block center button" l:onclick="{var level = Hard; print("Hard")}"> Hard </button>
+
+                        <button class="rounded-corners block center" type="submit"> Start Game </button>
+
+                    </form>
+                </div>
+                <div id="game">
+                   
+                </div>
+
+            </div>
+        </body>
+    </html>
+}
+
+#<button class="rounded-corners update-button block center button" l:onclick="{restartGame()}"> Update </button>
+
+
+sig main: () ~> ()
+fun main() {
+    addRoute("/", main_page);
+    servePages()
+}
+
+playerLoop(main)
