@@ -1,10 +1,17 @@
 #Nim web example
 
+var domSetAttribute = fun(domNode, attr, value) {
+  ignore(domSetAttributeFromRef(domNode, attr, value))
+};
+
 typename Player = [|Alice|Bob|You|];
 typename Level = [|Easy|Medium|Hard|];
 typename Cmd = [| StartGame | YourMove: Int|];
-typename GameState = (players:(Player, Player), level: Level, cheat:Bool, heap:Int);
+typename GameState = (player:(Player, Player), level: Level, cheat:Bool, heap:Int);
 typename ViewState = [|Game|SetUp|];
+typename Option(a) = [|None|Some:a|];
+
+
 
 sig playerToString: (Player) -> String
 fun playerToString(pl){
@@ -24,23 +31,29 @@ fun levelToString(lev){
     }
 }
 
-sig stringToPlayer: (String) -> [|Player|None|]
+sig boolToString: (Bool) -> String
+fun boolToString(b){
+    if(b) "true"
+    else "false"
+}
+
+sig stringToPlayer: (String) -> Player
 fun stringToPlayer(st){
     switch(st){
-        case "Alice" -> Some(Alice)
-        case "Bob" -> Some(Bob)
-        case "You" -> Some(You)
-        case _ -> None
+        case "Alice" -> Alice
+        case "Bob" -> Bob
+        case "You" -> You
+        case _ -> Alice
     }
 }
 
 sig stringToLevel: (String) -> Level
 fun stringToLevel(st){
     switch(st){
-        case "Easy" -> Some(Easy)
-        case "Medium" -> Some(Medium)
-        case "Hard" -> Some(Hard)
-        case _ -> None
+        case "Easy" -> Easy
+        case "Medium" -> Medium
+        case "Hard" -> Hard
+        case _ -> Easy
     }
 }
 
@@ -49,12 +62,13 @@ fun stringToBool(st){
     switch(st){
         case "true" -> true
         case "false" -> false
-        case _ -> None
+        case _ -> false
     }
 }
 
+sig setField: (a, String, (a) ~> String) ~%~> ()
 fun setField(newVal, id, toString){
-    domSetAttributeFromRef(getNodeById(id), "value", toString(newVal))
+    ignore(domSetAttributeFromRef(getNodeById(id), "value", toString(newVal)))
 }
 
 fun getField(id){
@@ -70,7 +84,8 @@ fun move(pl, n){
 sig game: () -%-> %
 fun game(){
     var st = do Get;
-    turn(st.players.1, st.players.2, st.heap)
+    renderView(Game, self(), st);
+    turn(st.player.1, st.player.2, st.heap)
 }
 
 sig turn: (Player, Player, Int) {Move: (Player, Int) -> Int|e}~> Player
@@ -82,7 +97,6 @@ fun turn(current, opp, n){
     } else{
         var rest = move(current, n);
         updateView(n, rest, current);
-        print(playerToString(current)^^" takes "^^ intToString(n-rest) ^^ ".");
         turn(opp, current, rest)
     }
 }
@@ -98,19 +112,20 @@ fun turn(current, opp, n){
 #    turn(opp, You, rest)
 #}
 
-sig gameProcess : () {Get:GameState, Set:(GameState) -> (), Move:(Player, Int) -> Int, hear:Cmd |e}~> a
+#sig gameProcess : () {Get:GameState, Set:(GameState) -> (), Move:(Player, Int) -> Int, hear:Cmd |e}~> a
 fun gameProcess(){
     var cmd = recv();
     var ret = switch(cmd){
         case YourMove(_) -> error("Unexpected input")
-        case StartGame ->
+        case StartGame ->{
           var pl1 = stringToPlayer(getField("pl1"));
           var pl2 = stringToPlayer(getField("pl2")); 
           var check = stringToBool(getField("check")); 
           var level = stringToLevel(getField("level")); 
           var heap = stringToInt(getField("heap")); 
-          var state = (players=(pl1, pl2), level=level, cheat=check, heap=heap);
+          var state = (player=(pl1, pl2), level=level, cheat=check, heap=heap);
         ignore(runState(moveHandler(game), state))
+        }
     };
     gameProcess()
 }
@@ -127,7 +142,7 @@ fun runState(f, st0){
 }
 
 # () for the suspended computation -> moveHandler returns a value so we need to thunk it. same as
-# var pId = spawnClient{runState(fun(){moveHandler(gameProcess)}, (players=(Alice,Bob), level=Easy, cheat=false))};
+# var pId = spawnClient{runState(fun(){moveHandler(gameProcess)}, (player=(Alice,Bob), level=Easy, cheat=false))};
 sig moveHandler: (() {Move: (Player, Int) -> Int, hear:Cmd|e}~> a) -> () {Move-, hear:Cmd|e}~> a
 fun moveHandler(f)(){
     handle(f()){
@@ -149,7 +164,7 @@ fun moveHandler(f)(){
 sig setPlayer : (Player, Player) {Get:GameState, Set: (GameState) -> () |e}~> ()
 fun setPlayer(pl1, pl2){
     var st = do Get;
-    do Set((st with players=(pl1, pl2)))
+    do Set((st with player=(pl1, pl2)))
 }
 
 sig setLevel : (Level) {Get:GameState, Set: (GameState) -> () |e}~> ()
@@ -165,9 +180,8 @@ fun setChecker(check){
 }
 
 
-
-fun parseNat(n){
-    print(n);
+sig parseNat: (String) ~> Option(Int)
+fun parseNat(n) server{ 
     if (n =~ /^[0-9]+$/) {
         var m = stringToInt(n);
         if(m < 0){
@@ -183,7 +197,7 @@ fun parseNat(n){
 fun sendInput(pId){
     var n = getInputValue("your-move");
     switch(parseNat(n)){
-        case None -> error("Wrong Input")
+        case None -> displayErrorMessage("game-error-message", "Please only enter numbers into the field.")
         case Some(m) -> pId ! YourMove(m)
     }
 }
@@ -191,21 +205,25 @@ fun sendInput(pId){
 fun validInput(id){
     var num = parseNat(getInputValue(id));
     switch(num){
-        case None -> false
-        case Some(n) -> true
+        case None -> print("None"); false
+        case Some(n) -> print("Number"); true
     }
 }
 
 fun start(pId){
     var num = parseNat(getInputValue("start-number"));
     switch(num){
-        case None -> domReplaceChildren(stringToXml("Please only enter numbers into the field."), getNodeById("start-error-message"));
+        case None -> displayErrorMessage("start-error-message", "Please only enter numbers into the field.")
         case Some(n) -> {
             setField(n, "heap", intToString);
-            renderView(Game, pId, n);
             pId ! StartGame
         }
     }
+}
+
+fun displayErrorMessage(id, msg){
+    var messageNode = getNodeById(id);
+    domReplaceChildren(stringToXml(msg), messageNode)
 }
 
 fun resetField(pl1, pl2, lev, check, n){
@@ -218,14 +236,14 @@ fun resetField(pl1, pl2, lev, check, n){
 
 fun restart(pId){
     resetField(Alice,Bob,Easy,false, 8);
-    renderView(SetUp, pId, 0)
+    renderView(SetUp, pId, (player=(Alice, Bob), level=Easy, cheat=false, heap=8))
 }
 
-fun renderView(view, pId, n){
+fun renderView(view, pId, state){
     var strategyNode = getNodeById("choose-strategy");
     var gameNode = getNodeById("game");
     switch(view){
-        case Game -> domReplaceChildren(getGameXml(pId, n), gameNode); domReplaceChildren(<#></#>, strategyNode)
+        case Game -> domReplaceChildren(getGameXml(pId, state), gameNode); domReplaceChildren(<#></#>, strategyNode)
         case SetUp -> domReplaceChildren(getSetUpXml(pId), strategyNode); domReplaceChildren(<#></#>, gameNode)
     }
 }
@@ -236,61 +254,89 @@ fun updateView(n, rest, current){
     
     #update game steps
     var step= switch(current){
-        case You -> {<#><div> 
-            <p> {stringToXml("You take "^^ intToString(n-rest)^^".")}</p>
-            </div></#>}
-        case _ -> {<#><div> 
-            <p> {stringToXml(playerToString(current) ^^" takes "^^ intToString(n-rest)^^".")}</p>
-            </div></#>}
+        case You -> {<#>
+                <div> 
+                    <p> {stringToXml("You take "^^ intToString(n-rest)^^".")}</p>
+                </div>
+                <hr class="thin-grey center"/>
+            </#>}
+        case _ -> {<#>
+                <div> 
+                    <p> {stringToXml(playerToString(current) ^^" takes "^^ intToString(n-rest)^^".")}</p>
+                </div>
+                <hr class="thin-grey center"/>
+            </#>}
     };
     appendChildren(step, getNodeById("game-steps"))
 }
 
-fun getGameXml(pId, n){
+fun getGameXml(pId, gameState){
             <#>
-            <div class="field rounded-corners width-list center margin-10 ">
-                <div id="left-sticks">intToXml(n)</div>
-                <div id="game-steps"></div>
+            <div class="field rounded-corners width-list center margin-10">
+                <div class="game-head center block">
+                    <span>Enter your Move </span>
+                    <input class="input-field rounded-corners margin-all-4" placeholder="Enter your move" id="your-move" type="text" />
+                    <button class="move-button rounded-corners margin-10 color-sec" l:onclick="{sendInput(pId)}">Move</button>
+                    <p class="error-message centered-text center margin-10" id="game-error-message"></p>
+                </div>
+                <div class="game-view">
+                    <div class="game-left game-boxes"> 
+                        <div class="view-heading centered-text game-head-height"> Game Stats </div>
+                        <p> Players: {stringToXml(playerToString(gameState.player.1))} and {stringToXml(playerToString(gameState.player.2))}.</p>
+                                                <hr class="thin-grey center"/>
 
-                <input class="input-field" placeholder="Enter your move" id="your-move" type="text" />
-                <button class="move-button rounded-corners margin-10 color-sec" l:onclick="{sendInput(pId)}">Move</button>
+                        <p> Level: {stringToXml(levelToString(gameState.level))}</p>
+                                                <hr class="thin-grey center"/>
+
+                        <p> Size of Heap: {intToXml(gameState.heap)}</p>
+                    </div>
+                    <div class="game-right game-boxes">
+                        <div id="left-sticks" class="left-sticks centered-text game-head-height">{intToXml(gameState.heap)}</div>
+
+                        <div id="game-steps" class="block"></div>
+                    </div>
+                    
+                
+                </div>
+
+                
             </div>
-            <p class="error-message" id="start-error-message"></p>
+            
             <button class="rounded-corners block row-button center color-accent" l:onclick="{restart(pId)}"> Restart </button>
         </#>
 }
 
 fun getSetUpXml(pId){
             <#>
-            <div class="field rounded-corners width-list center  margin-10">
+            <div class="field rounded-corners width-list center margin-10">
                 <p> Choose your Opponent: </p>
                 <div class="buttons center">
-                    <button class="row-button rounded-corners margin-10 color-sec" l:onclick="{setField(Alice, "pl1", playerToString); setField(You, "pl2", playerToString)}">Alice</button>
-                    <button class="row-button rounded-corners margin-10 color-sec" l:onclick="{setField(Bob, "pl1", playerToString); setField(You, "pl2", playerToString)}">Bob</button>
-                    <button class="row-button rounded-corners margin-10 color-sec" l:onclick="{setField(Alice, "pl1", playerToString); setField(Bob, "pl2", playerToString)}">Or Alice vs Bob</button>
+                    <button class="row-button rounded-corners margin-10 color-sec margin-all-4" l:onclick="{setField(Alice, "pl1", playerToString); setField(You, "pl2", playerToString)}">Alice</button>
+                    <button class="row-button rounded-corners margin-10 color-sec margin-all-4" l:onclick="{setField(Bob, "pl1", playerToString); setField(You, "pl2", playerToString)}">Bob</button>
+                    <button class="row-button rounded-corners margin-10 color-sec margin-all-4" l:onclick="{setField(Alice, "pl1", playerToString); setField(Bob, "pl2", playerToString)}">Or Alice vs Bob</button>
                 </div>
             </div>
             <div class="field rounded-corners width-list center margin-10">
                 <p> Choose your Difficulty: </p>
                 <div class="buttons center">
-                    <button class="row-button rounded-corners margin-10 color-sec" l:onclick="{setField(Easy, "level", levelToString)}">Easy</button>
-                    <button class="row-button rounded-corners margin-10 color-sec" l:onclick="{setField(Medium, "level", levelToString)}">Medium</button>
-                    <button class="row-button rounded-corners margin-10 color-sec" l:onclick="{setField(Hard, "level", levelToString)}">Hard</button>
+                    <button class="row-button rounded-corners margin-10 color-sec margin-all-4" l:onclick="{setField(Easy, "level", levelToString)}">Easy</button>
+                    <button class="row-button rounded-corners margin-10 color-sec margin-all-4" l:onclick="{setField(Medium, "level", levelToString)}">Medium</button>
+                    <button class="row-button rounded-corners margin-10 color-sec margin-all-4" l:onclick="{setField(Hard, "level", levelToString)}">Hard</button>
                 </div>
             </div>
             <div class="field rounded-corner width-list center margin-10">
                 <p> Allow Cheating:</p>
                 <div class="buttons center">
-                    <button class="row-button rounded-corners margin-10 color-sec" l:onclick="{setField(false, "check", boolToString)}">No</button>
-                    <button class="row-button rounded-corners margin-10 color-sec" l:onclick="{setField(true, "check", boolToString)}">Yes</button>
+                    <button class="row-button rounded-corners margin-10 color-sec margin-all-4" l:onclick="{setField(false, "check", boolToString)}">No</button>
+                    <button class="row-button rounded-corners margin-10 color-sec margin-all-4" l:onclick="{setField(true, "check", boolToString)}">Yes</button>
                 </div>
             </div>
             <div class="field rounded-corners width-list center margin-10">
-                <p>Please choose a start number:</p>
-                <input class="input-field rounded-corners" id="start-number" type="text" />
+                <p>Please choose a heap size:</p>
+                <input class="input-field rounded-corners margin-all-4" id="start-number" type="text" />
             </div>
                             
-            <p class="error-message" id="start-error-message"></p>
+            <p class="error-message centered-text center margin-10" id="start-error-message"></p>
 
             <button class="rounded-corners block row-button center color-accent" l:onclick="{start(pId)}"> Start Game </button>
             
@@ -349,11 +395,14 @@ fun main_page(_) {
             transform: translateY(-50%);
         }}
         .width-list{{
-            width: 90%;
+            width: 85%;
         }}
         .margin-10{{
             margin-top:10px;
             margin-bottom: 10px;
+        }}
+        .margin-all-4{{
+            margin:4px;
         }}
         .font-10{{
             font-size: 15px;
@@ -373,7 +422,6 @@ fun main_page(_) {
             width: 19%;
             min-width: 90px;
             height: 2.6em;
-            margin: 4px;
         }}
         .row-button:visited .row-button:focus{{
             background-color: #63b29e;
@@ -414,9 +462,13 @@ fun main_page(_) {
             border: 0;
             width: 90%;
             border-top: 1px solid #b8b8b8;
+            margin-top: 0;
+            margin-bottom: 0;
+            padding: 0;
+        }}
+        .thin-grey-start{{
             margin-top: 1em;
             margin-bottom: 2em;
-            padding: 0;
         }}
         .field{{
             min-height: 2em;
@@ -426,6 +478,46 @@ fun main_page(_) {
             clear: both;
             overflow: hidden;
         }}
+        .game-view{{
+            display: flex;
+            justify-content: center;
+            border: solid 2px blue;
+        }}
+        .game-left{{
+            width: 39%;
+            min-width 200px;
+            border: solid 2px red;
+        }}
+        .game-right{{
+            width: 59%;
+            min-width 300px;
+            border: solid 2px green;
+        }}
+        .game-boxes{{
+            margin:2px;
+        }}
+        .error-message{{
+            font-size: 20px;
+            font-weight: bold;
+            color: #cc0606;
+        }}
+        .game-head{{
+
+        }}
+        .game-head span{{
+            align-self: flex-end;
+        }}
+        .left-sticks{{
+            font-weight: bold;
+            color: #c4005e;
+        }}
+        .game-head-height{{
+            height: 45px;
+            background-color: #a6d8cc;
+            padding-top: 20px;
+            font-size: 25px;
+        }}
+
         </style>
     </head>
         <body>
@@ -433,7 +525,7 @@ fun main_page(_) {
                 <div class="top-heading center">
                     <p> The Game of Nim </p>
                 </div>
-                <hr class="thin-grey center"/>
+                <hr class="thin-grey thin-grey-start"/>
                 <div id="choose-strategy" class="choose-strategy width-list center ">
                     {getSetUpXml(pId)}
                 </div>
