@@ -1,9 +1,3 @@
-#Nim web example
-
-var domSetAttribute = fun(domNode, attr, value) {
-  ignore(domSetAttributeFromRef(domNode, attr, value))
-};
-
 typename Player = [|Alice|Bob|You|];
 typename Level = [|Easy|Medium|Hard|];
 typename Cmd = [| StartGame | YourMove: Int|];
@@ -75,7 +69,6 @@ fun getField(id){
     domGetAttributeFromRef(getNodeById(id), "value")
 }
 
-
 sig move: (Player, Int) {Move:(Player, Int) -> Int|e}~> Int
 fun move(pl, n){
     do Move(pl, n)
@@ -101,7 +94,6 @@ fun turn(current, opp, n){
     }
 }
 
-
 #fun yourTurn(opp, n){
 #
 #    var input = switch(recv()){
@@ -111,6 +103,21 @@ fun turn(current, opp, n){
 #    var rest = n - input;
 #    turn(opp, You, rest)
 #}
+
+sig hard: (Player, Int) -> Int
+fun hard(pl, n){
+    maximum(1, (n-1) `mod` 4)
+}
+
+sig medium: (Player, Int) ~> Int
+fun medium(pl, n){
+    chooseRandom(validMoves(n))
+}
+
+sig easy: (Player, Int) -> Int
+fun easy(pl, n){
+    1
+}
 
 #sig gameProcess : () {Get:GameState, Set:(GameState) -> (), Move:(Player, Int) -> Int, hear:Cmd |e}~> a
 fun gameProcess(){
@@ -124,10 +131,41 @@ fun gameProcess(){
           var level = stringToLevel(getField("level")); 
           var heap = stringToInt(getField("heap")); 
           var state = (player=(pl1, pl2), level=level, cheat=check, heap=heap);
-        ignore(runState(moveHandler(game), state))
+          switch(state.level){
+              case Easy -> ignore(runState(restartHandler(moveHandler(game, easy)), state))
+              case Medium -> ignore(runState(restartHandler(moveHandler(game, medium)), state))
+              case Hard -> ignore(runState(restartHandler(moveHandler(game, hard)), state))
+          }
         }
     };
     gameProcess()
+}
+
+sig validMoves : (Int) -> [Int]
+fun validMoves(n)
+ { filter(fun(m) {m <= n}, [1,2,3]) }
+
+sig chooseRandom: ([Int]) ~> Int
+fun chooseRandom(numbers){
+    switch(numbers){
+        case [] -> 0
+        case [x] -> x
+        case x::xs -> fun loop(xs, n, ret){
+                        switch(xs){
+                            case [] -> ret
+                            case x::xs -> {
+                                var rand = random();
+                                print("rand: "^^ floatToString(rand) ^^ " and p: " ^^ floatToString(intToFloat(1) /. intToFloat(n+1)));
+                                if(rand <= intToFloat(1) /. intToFloat(n+1)){
+                                    loop(xs, n+1, x)
+                                } else{
+                                    loop(xs, n+1, ret)
+                                }
+                            }
+                        }
+                    }
+                    loop(xs, 1, 1)
+    }
 }
 
 #handler
@@ -143,21 +181,26 @@ fun runState(f, st0){
 
 # () for the suspended computation -> moveHandler returns a value so we need to thunk it. same as
 # var pId = spawnClient{runState(fun(){moveHandler(gameProcess)}, (player=(Alice,Bob), level=Easy, cheat=false))};
-sig moveHandler: (() {Move: (Player, Int) -> Int, hear:Cmd|e}~> a) -> () {Move-, hear:Cmd|e}~> a
-fun moveHandler(f)(){
+sig moveHandler: (() {Move: (Player, Int) -> Int, hear:Cmd|e}~> a, (Player, Int) ~%~> Int) -> () {Move-, hear:Cmd|e}~> a
+fun moveHandler(f, s)(){
     handle(f()){
         case Return(x) -> x
         case Move(pl, n, resume) -> {
             switch (pl) {
                 case You ->
-                    var rest = switch(recv()){
-                        case YourMove(x) -> n-x
-                        case _ -> error("Wrong Input")
-                    };
-                    resume(rest)
-                case _ -> resume(n-1)
+                    switch(recv()){
+                        case YourMove(x) -> resume(n-x)
+                        case StartGame -> do Restart(self())
+                    }
+                case _ -> resume(n-s(pl, n))
             }
         }
+    }
+}
+
+fun restartHandler(f){
+    handle(f()){
+        case Restart(pId) -> restart(pId)
     }
 }
 
@@ -197,7 +240,7 @@ fun parseNat(n) server{
 fun sendInput(pId){
     var n = getInputValue("your-move");
     switch(parseNat(n)){
-        case None -> displayErrorMessage("game-error-message", "Please only enter numbers into the field.")
+        case None -> displayErrorMessage("game-error-message", "Please enter numbers into the field.")
         case Some(m) -> pId ! YourMove(m)
     }
 }
@@ -205,15 +248,15 @@ fun sendInput(pId){
 fun validInput(id){
     var num = parseNat(getInputValue(id));
     switch(num){
-        case None -> print("None"); false
-        case Some(n) -> print("Number"); true
+        case None -> false
+        case Some(n) -> true
     }
 }
 
 fun start(pId){
     var num = parseNat(getInputValue("start-number"));
     switch(num){
-        case None -> displayErrorMessage("start-error-message", "Please only enter numbers into the field.")
+        case None -> displayErrorMessage("start-error-message", "Please enter numbers into the field.")
         case Some(n) -> {
             setField(n, "heap", intToString);
             pId ! StartGame
