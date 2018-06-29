@@ -158,7 +158,6 @@ fun chooseRandom(numbers){
                             case [] -> ret
                             case x::xs -> {
                                 var rand = random();
-                                print("rand: "^^ floatToString(rand) ^^ " and p: " ^^ floatToString(intToFloat(1) /. intToFloat(n+1)));
                                 if(rand <= intToFloat(1) /. intToFloat(n+1)){
                                     loop(xs, n+1, x)
                                 } else{
@@ -286,32 +285,39 @@ fun resetField(pl1, pl2, lev, check, n){
 sig restart: (Process({hear:Cmd |e})) ~> ()
 fun restart(pId){
     resetField(Alice,Bob,Easy,false, 8);
+
     renderView(SetUp, pId);
 }
 
 sig finishGame: (Player, Process({hear:Cmd|e})) ~> ()
 fun finishGame(winner, pId){
     #add gif in background
-
+    addWinnerGif();
     renderView(Winner(winner), pId);
     renderView(SetUp, pId)
 }
 
-fun addWinnerGif(url){
+fun addWinnerGif(){
     var background = getNodeById("background");
     var body = getNodeById("body");
     #add gif to body as background
     domSetStyleAttrFromRef(body, "background-image", "url('https://media.giphy.com/media/IjmMzurYulKEw/giphy.gif')");
-    domSetStyleAttrFromRef(body, "background-size", "cover")
+    domSetStyleAttrFromRef(body, "background-size", "cover");
+    domSetStyleAttrFromRef(background, "background-color", "transparent")
+}
 
-
+fun removeWinnerGif(){
+    var background = getNodeById("background");
+    var body = getNodeById("body");
+    domRemoveAttributeFromRef(body, "style");
+    domSetStyleAttrFromRef(background, "background-color", "#f4f4f4")
 }
 
 fun renderView(view, pId){
     var node = getNodeById("game");
     var winner = getNodeById("winner");
     switch(view){
-        case Game(state) -> domReplaceChildren(getGameXml(pId, state), node)
+        case Game(state) ->  domReplaceChildren(<#></#>, winner); removeWinnerGif(); domReplaceChildren(getGameXml(pId, state), node)
         case SetUp -> domReplaceChildren(getSetUpXml(pId), node)
         case Winner(pl) -> domReplaceChildren(getWinnerXml(pId, pl), winner)
     }
@@ -442,8 +448,6 @@ fun main_page(_) {
     <head>
         <style>
         body{{
-            background-image:url('https://media.giphy.com/media/IjmMzurYulKEw/giphy.gif');
-            background-size: cover;
             font-size: 20px;
             font-family: Bookman, sans-serif;
             color: #3e0068;
@@ -607,33 +611,35 @@ fun main_page(_) {
         .winner-heading{{
             text-align: center;
             font-size: 60px;
-            color: #a6d8cc;
+            color: #ffcc00;
             font-weight: bold;
             line-height: 0;
             padding: 10px;
         }}
         </style>
     </head>
-        <body id="body">
-            <div id="background" class="background center">
-                <div class="top-heading center">
-                    <p> The Game of Nim </p>
-                </div>
-                <hr class="thin-grey thin-grey-start"/>
-                <div id="winner"></div>
-                <div id="game">
-                    {getSetUpXml(pId)}
-                </div>
+    <body>
+    <div id="body">
+        <div id="background" class="background center">
+            <div class="top-heading center">
+                <p> The Game of Nim </p>
+            </div>
+            <hr class="thin-grey thin-grey-start"/>
+            <div id="winner"></div>
+            <div id="game">
+                {getSetUpXml(pId)}
+            </div>
 
-            <div id="game-state" style="display: none;">
-                <span id="pl1" value="Alice"></span>
-                <span id="pl2" value="Bob"></span>
-                <span id="level" value="Easy"></span>
-                <span id="check" value="false"></span>
-                <span id="heap" value="8"></span>
-            </div>
-            </div>
-        </body>
+        <div id="game-state" style="display: none;">
+            <span id="pl1" value="Alice"></span>
+            <span id="pl2" value="Bob"></span>
+            <span id="level" value="Easy"></span>
+            <span id="check" value="false"></span>
+            <span id="heap" value="8"></span>
+        </div>
+        </div>
+    </div>
+    </body>
     </html>
 }
 
