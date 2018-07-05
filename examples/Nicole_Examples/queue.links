@@ -1,0 +1,106 @@
+typename Queue(a) = (rear: [a], front: [a]);
+typename Option(a) = [|Some:a|None|];
+typename Co(e::Eff) = () {Fork: (Co({ |e})) -> (), Yield |e}~> ();
+
+sig enqueue: (a, Queue(a)) -> Queue(a)
+fun enqueue(x, q){
+    (q with rear=x::q.rear)
+}
+
+sig dequeue: (Queue(a)) ~> (Option(a),Queue(a))
+fun dequeue(q){
+    switch(q) {
+        case (rear=[], front=[]) -> (None, q)
+        case (rear=xs, front=[]) ->
+          var q0 = (rear=[], front=reverse(xs));
+          dequeue(q0)
+        case (rear=ys, front=(x :: xs)) ->
+          var q0 = (rear=ys, front=xs);
+          (Some(x), q0)
+    }
+}
+
+fun emptyQueue(){
+    (rear=[], front=[])
+}
+
+
+sig queueLength: (Queue(a)) -> Int
+fun queueLength(q){
+    length(q.rear) + length(q.front)
+}
+
+sig isQueueEmpty: (Queue(a)) -> Bool
+fun isQueueEmpty(q){
+    (q.rear == []) && (q.front == [])
+}
+
+#sig printQueue: (Queue(a), (a) -> String) ~> ()
+#fun printQueue(q, toString){
+#    fun aux()
+#    var acc = "";
+#    while( not isQueueEmpty(q)){
+#        acc = acc ^^ " " ^^ toString(dequeue(q))
+#    }
+#    print(acc)
+#}
+
+sig fork : (Co({ |e})) {Fork: (Co({ |e})) -> (), Yield |e}~> ()
+fun fork(f){
+    do Fork(f)
+}
+
+sig yield: () {Yield |e}~> ()
+fun yield(){
+    do Yield
+}
+
+#sig runNext : (Queue(%)) {Fork-, Yield- |e}~> ()
+
+fun schedule(main) {
+    
+    fun runNext(q){
+        switch(dequeue(q)){
+            case (None, _) -> ()
+            case (Some(resume), q) -> resume((), q)
+        }
+    }
+
+    sig withThreads : (Co({ |e}), Queue(%)) {Fork-, Yield- |e}~> ()
+    fun withThreads(c, q0){
+        handle(c())(q0 -> q){
+            case Return(x) -> 
+                runNext(q)
+            case Fork(f, resume) ->
+                var q = enqueue(resume, q);
+                withThreads(f, q)
+            case Yield(resume) -> 
+                var q = enqueue(resume, q); 
+                runNext(q)
+        }
+    }
+
+    withThreads(main, emptyQueue())
+}
+
+fun main() {
+    println("Beginning 1");
+    fork(fun(){
+        println("Beginning 2");
+        yield();
+        println("End 2")
+    });
+    println("1");
+    fork(fun(){
+        println("Beginning 3");
+        yield();
+        println("3");
+        yield();
+        yield();
+        println("End 3")
+    });
+    println("End 1")
+}
+
+
+schedule(main)
