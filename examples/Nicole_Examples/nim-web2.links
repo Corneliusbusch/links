@@ -292,7 +292,10 @@ fun restart(pId){
 sig finishGame: (Player, Process({hear:Cmd|e})) ~> ()
 fun finishGame(winner, pId){
     #add gif in background
-    addWinnerGif();
+    switch(winner){
+        case You -> addWinnerGif()
+        case (_) -> ()
+    };
     renderView(Winner(winner), pId);
     renderView(SetUp, pId)
 }
@@ -352,7 +355,7 @@ fun getGameXml(pId, gameState){
                 <div class="game-head center block">
                     <span>Enter your Move </span>
                     <input class="input-field rounded-corners margin-all-4" placeholder="Enter your move" id="your-move" type="text" />
-                    <button class="move-button rounded-corners margin-10 color-sec" l:onclick="{sendInput(pId)}">Move</button>
+                    <button class="move-button rounded-corners margin-10 font-10 color-sec" l:onclick="{sendInput(pId)}">Move</button>
                     <p class="error-message centered-text center margin-10" id="game-error-message"></p>
                 </div>
                 <div class="game-view">
@@ -531,7 +534,6 @@ fun main_page(_) {
         }}
         .color-sec{{
             background-color: #a6d8cc;
-            font-size: 20px;
         }}
         .input-field{{
             margin-bottom: 10px;
