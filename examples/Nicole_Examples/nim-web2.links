@@ -99,7 +99,7 @@ fun turn(current, opp, n){
         current
     } else{
         var rest = move(current, n);
-        updateView(n, rest, current);
+        updateView(n, {if(rest >= 0) rest else 0}, current);
         turn(opp, current, rest)
     }
 }
@@ -142,7 +142,7 @@ fun gameProcess(){
             prepareGame()
         }
         case Restart -> {
-            error("Unexpected input")
+            prepareGame()
         }
     };
     finishGame(winner, self()) ;
@@ -294,7 +294,7 @@ fun resetField(pl1, pl2, lev, check, n){
 
 sig restart: (Process({hear:Cmd |e})) ~> ()
 fun restart(pId){
-    resetField(Alice,Bob,Easy,false, 8);
+    resetField(Alice,You,Easy,false, 8);
     renderView(RestartSetUp, pId);
     
 }
@@ -313,17 +313,22 @@ fun finishGame(winner, pId){
 fun addWinnerGif(){
     var background = getNodeById("background");
     var body = getNodeById("body");
-    #add gif to body as background
     domSetStyleAttrFromRef(body, "background-image", "url('https://media.giphy.com/media/IjmMzurYulKEw/giphy.gif')");
     domSetStyleAttrFromRef(body, "background-size", "cover");
-    domSetStyleAttrFromRef(background, "background-color", "transparent")
+    domSetStyleAttrFromRef(background, "background-color", "transparent");
+    domAddStyleClassToRef(getNodeById("setUp"), "background-base");
+    domAddStyleClassToRef(getNodeById("setUp"), "background-setup");
+    domAddStyleClassToRef(getNodeById("setUp"), "rounded-corners")
+
 }
 
 fun removeWinnerGif(){
     var background = getNodeById("background");
     var body = getNodeById("body");
     domRemoveAttributeFromRef(body, "style");
-    domSetStyleAttrFromRef(background, "background-color", "#f4f4f4")
+    domSetStyleAttrFromRef(background, "background-color", "#f4f4f4");
+    domRemoveStyleClassFromRef(getNodeById("setUp"), "background-setup");
+    domRemoveStyleClassFromRef(getNodeById("setUp"), "background-base");
 }
 
 fun renderView(view, pId){
@@ -334,7 +339,7 @@ fun renderView(view, pId){
         case RestartSetUp -> domReplaceChildren(<#></#>, gameview); domReplaceChildren(getSetUpXml(pId), setup)
         case Game(state) ->  domReplaceChildren(<#></#>, setup); domReplaceChildren(<#></#>, winner); removeWinnerGif(); domReplaceChildren(getGameXml(pId, state), gameview)
         case SetUp -> domReplaceChildren(getSetUpXml(pId), setup)
-        case Winner(pl) -> domReplaceChildren(getWinnerXml(pId, pl), winner)
+        case Winner(pl) -> domReplaceChildren(getWinnerXml(pId, pl), winner); domSetStyleAttrFromRef(getNodeById("game-head"), "display", "none")
     }
 }
 
@@ -373,23 +378,27 @@ fun updateView(n, rest, current){
 sig getGameXml: (Process ({hear:Cmd |e}) , GameState) ~%~> Xml
 fun getGameXml(pId, gameState){
         <#>
+        
             <div class="field rounded-corners width-list center margin-10">
-                <div class="game-head center block">
-                    <span>Enter your Move </span>
-                    <input class="input-field rounded-corners margin-all-4" placeholder="Enter your move" id="your-move" type="text" />
-                    <button class="move-button rounded-corners margin-10 font-10 color-sec" l:onclick="{sendInput(pId)}">Move</button>
+                <div id="game-head" class="game-head center">
+                    <div class="margin-10 width-90 center display-flex">
+                        <span class="margin-10">Enter your Move </span>
+                        <input class="input-field rounded-corners margin-10 font-10" placeholder="Enter your move" id="your-move" type="text" />
+                        <button class="move-button rounded-corners font-10 color-sec margin-10" l:onclick="{sendInput(pId)}">Move</button>
+                    </div>
                     <p class="error-message centered-text center margin-10" id="game-error-message"></p>
+                    <hr class="thin-grey width-100 center"/>
                 </div>
-                <div class="game-view">
+                <div class="game-view margin-10">
                     <div class="game-left game-boxes"> 
                         <div class="view-heading centered-text game-head-height"> Game Stats </div>
-                        <p> Players: {stringToXml(playerToString(gameState.player.1))} and {stringToXml(playerToString(gameState.player.2))}.</p>
+                        <p class="margin-left-25 sub-text font-10"> Players: {stringToXml(playerToString(gameState.player.1))} and {stringToXml(playerToString(gameState.player.2))}.</p>
                                                 <hr class="thin-grey width-90 center"/>
 
-                        <p> Level: {stringToXml(levelToString(gameState.level))}</p>
+                        <p class="margin-left-25 sub-text font-10"> Level: {stringToXml(levelToString(gameState.level))}</p>
                                                 <hr class="thin-grey width-90 center"/>
 
-                        <p> Size of Heap: {intToXml(gameState.heap)}</p>
+                        <p class="margin-left-25 sub-text font-10"> Starting heap size: {intToXml(gameState.heap)}</p>
                     </div>
                     <div class="game-right game-boxes">
                         <div id="left-sticks" class="left-sticks centered-text game-head-height">{intToXml(gameState.heap)}</div>
@@ -398,19 +407,22 @@ fun getGameXml(pId, gameState){
                     </div>
                 </div>
             </div>
-            <button class="rounded-corners block move-button center font-10" l:onclick="{pId ! Restart}"> Restart </button>
+            <button id="restart-button" class="rounded-corners button block font-10 center" l:onclick="{pId ! Restart}"> Restart </button>
         </#>
 }
 
 fun getSetUpXml(pId){
         <#>
-            <div class="choose-strategy width-list center ">
+
+        <div id="setup-background" class="center">
+        <div class="section centered-text"> Set up a new Game </div>
+
             <div class="field rounded-corners width-list center margin-10">
                 <p class="text"> Choose the players: </p>
                 <hr class="thin-grey width-100 center"/>
-                <div class="sub-text"> You can play against Alice or Bob, or watch Alice and Bob play against each other.</div>
+                <div class="sub-text margin-hor-10 font-10"> You can play against Alice or Bob, or watch Alice and Bob play against each other.</div>
                 <div class="buttons center"> 
-                    <button id="button-a" class="row-button rounded-corners margin-10 color-sec font-10 margin-all-4" l:onclick="{
+                    <button id="button-a" class="row-button rounded-corners margin-10 color-sec font-10 margin-all-4 selected-button" l:onclick="{
                         setField(Alice, "pl1", playerToString); 
                         setField(You, "pl2", playerToString);
                         buttonChosen("button-a", "buttons-player")}"
@@ -426,12 +438,12 @@ fun getSetUpXml(pId){
                         buttonChosen("button-c", "buttons-player")}"
                         >Alice vs Bob</button>
                 </div>
-                <div id="buttons-player" display="none" value=""></div>
+                <div id="buttons-player" display="none" value="button-a"></div>
             </div>
             <div class="field rounded-corners width-list center margin-10">
                 <p class="text"> Choose the difficulty: </p>
                 <hr class="thin-grey width-100 center"/>
-                <div class="sub-text"> There are three different strategies for the opponent:
+                <div class="sub-text margin-hor-10 font-10"> There are three different strategies for the opponent:
                 <div class="display-left">
                     <div>
                         <ul class="sub-text-list bold"><li>Easy</li>
@@ -446,7 +458,7 @@ fun getSetUpXml(pId){
                     </div>
                 </div>
                 <div class="buttons center">
-                    <button id="button-easy" class="row-button rounded-corners margin-10 color-sec font-10 margin-all-4" l:onclick="{
+                    <button id="button-easy" class="row-button rounded-corners margin-10 color-sec font-10 margin-all-4 selected-button" l:onclick="{
                         setField(Easy, "level", levelToString);
                         buttonChosen("button-easy", "buttons-level")}"
                         >Easy</button>
@@ -459,14 +471,14 @@ fun getSetUpXml(pId){
                         buttonChosen("button-hard", "buttons-level")}"
                         >Hard</button>
                 </div>
-                <div id="buttons-level" display="none" value=""></div>
+                <div id="buttons-level" display="none" value="button-easy"></div>
             </div>
             <div class="field rounded-corner width-list center margin-10">
                 <p class="text"> Allow cheating:</p>
                 <hr class="thin-grey width-100 center"/>
-                <div class="sub-text">When cheating is allowed, the game will accept invalid moves. e.g. taking four sticks at once.</div>
+                <div class="sub-text margin-hor-25 font-10">When cheating is allowed, the game will accept invalid moves. e.g. taking four sticks at once.</div>
                 <div class="buttons center">
-                    <button id="button-no" class="row-button rounded-corners margin-10 color-sec font-10 margin-all-4" l:onclick="{
+                    <button id="button-no" class="row-button rounded-corners margin-10 color-sec font-10 margin-all-4 selected-button" l:onclick="{
                         setField(false, "check", boolToString);
                         buttonChosen("button-no", "buttons-cheat")}"
                         >No</button>
@@ -475,11 +487,11 @@ fun getSetUpXml(pId){
                         buttonChosen("button-yes", "buttons-cheat")}"
                         >Yes</button>
                 </div>
-                <div id="buttons-cheat" display="none" value=""></div>
+                <div id="buttons-cheat" display="none" value="button-no"></div>
             </div>
-            <div class="field rounded-corners width-list center margin-10">
+            <div class="field rounded-corners width-list center margin-10 display-flex">
                 <p class="text">Please choose a heap size:</p>
-                <input class="input-field rounded-corners font-10 margin-all-4" id="start-number" type="text" />
+                <input class="input-field rounded-corners font-10 margin-all-4" id="start-number" value="8" type="text" />
             </div>
                             
             <p class="error-message centered-text center font-10 margin-10" id="start-error-message"></p>
@@ -537,21 +549,34 @@ fun main_page(_) {
             font-family: Bookman, sans-serif;
             color: #3e0068;
         }}
-        .background{{
-            width: 80%;
+        .background-base{{
             max-width: 1200px;
             min-width: 300px;
             background-color: #f4f4f4;
+                margin: 0 auto;
+        }}
+        .background{{
+            width: 80%;
             min-height: 100%;
         }}
+        .background-setup{{
+            width: 90%;
+            margin-top: 50px;
+        }}
         .top-heading{{
-            padding-top: .5em;
+            padding-top: .9em;
             width: 75%;
             font-size: 3em;
             line-height: 100%;
             color: #c4005e;
             font-weight: bold;
             text-align: center;
+        }}
+        .section{{
+            font-size: 35px;
+            line-height: 100%;
+            font-weight: bold;
+            padding: 1.6em 0em .5em 0em
         }}
         .centered-text{{
             text-align: center;
@@ -562,6 +587,9 @@ fun main_page(_) {
         .display-left{{
             display: flex;
             justify-content: left;
+        }}
+        .display-flex{{
+            display: flex;
         }}
         .font-size-large{{
             font-size: 1.5em;
@@ -581,11 +609,17 @@ fun main_page(_) {
             margin-top:10px;
             margin-bottom: 10px;
         }}
+        .margin-hor-10{{
+            margin: 10px 0;
+        }}
         .margin-all-4{{
             margin:4px;
         }}
         .margin-0{{
             margin: 0;
+        }}
+        .margin-left-25{{
+            margin-left: 25px;
         }}
         .font-10{{
             font-size: 18px;
@@ -605,8 +639,9 @@ fun main_page(_) {
             margin: 5px;
         }}
         .button{{
-            height: 30px;
-            width: 55px;
+            height: 1.5em;
+            width: 10%;
+            min-width: 80px;
         }}
         .row-button{{
             width: 19%;
@@ -614,8 +649,10 @@ fun main_page(_) {
             height: 2.6em;
         }}
         .move-button{{
-            width: 10%;
-            height: 1.5em;
+            width: 15%;
+            height: 1.8em;
+            margin-left: 20px;
+            margin: right: 20px;
         }}
         .move-button:hover .row-button:hover{{
             background-color:#63b29e;
@@ -629,8 +666,7 @@ fun main_page(_) {
             background-color: #a6d8cc;
         }}
         .input-field{{
-            margin-bottom: 10px;
-            margin-top: 8px;
+            margin: 10px 0px 10px 20px;
             background-color: #f2f2f2;
             color: #010b19;
             padding: .1em 2%;
@@ -638,7 +674,6 @@ fun main_page(_) {
             font-size: 15px;
             width: 30%;
             min-width: 55px;
-            height: 1.5em;
         }}
         .rounded-corners{{
             border-radius: 5px;
@@ -717,15 +752,18 @@ fun main_page(_) {
             font-weight: bold;
         }}
         .sub-text{{
-            font-size: 17px;
             padding: 0;
-            margin: 10px 0;
             color: #3d3d3d;
         }}
         .sub-text-list{{
             list-style: none;
             margin: 5px;
             padding: 0 20px;
+        }}
+        .information{{
+            margin-top: 15px;
+            margin-bottom: 25px;
+            font-size: 20px;
         }}
         .selected-button {{
             border: 3px solid #c4005e;
@@ -737,13 +775,19 @@ fun main_page(_) {
     </head>
     <body>
     <div id="body">
-        <div id="background" class="background center">
+        <div id="background" class="background-base background center">
             <div class="top-heading center">
-                <p> The Game of Nim </p>
+                 The Game of Nim 
             </div>
             <hr class="thin-grey thin-grey-start width-90"/>
+            
             <div id="winner"></div>
-            <div id="game"></div>
+            <div id="game">
+                <p class="width-list information center"> In the game of nim, two player take turns drawing sticks from a heap. 
+                For a correct move, a player would take one, two or three sticks from the heap. 
+                The player who takes the last stick loses. </p>
+                <hr class="thin-grey width-90 center"/>                
+            </div>
             <div id="setUp">
                 {getSetUpXml(pId)}
             </div>
@@ -751,7 +795,7 @@ fun main_page(_) {
 
         <div id="game-state" style="display: none;">
             <span id="pl1" value="Alice"></span>
-            <span id="pl2" value="Bob"></span>
+            <span id="pl2" value="You"></span>
             <span id="level" value="Easy"></span>
             <span id="check" value="false"></span>
             <span id="heap" value="8"></span>
