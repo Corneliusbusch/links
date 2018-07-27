@@ -476,9 +476,9 @@ fun getSetUpXml(pId){
                 <div id="buttons-level" display="none" value="button-easy"></div>
             </div>
             <div class="field rounded-corner width-list center margin-10">
-                <p class="text"> Allow cheating:</p>
+                <p class="text"> Allow cheating: (TODO)</p>
                 <hr class="thin-grey width-100 center"/>
-                <div class="sub-text margin-hor-25 font-10">When cheating is allowed, the game will accept invalid moves. e.g. taking four sticks at once.</div>
+                <div class="sub-text margin-hor-10 font-10">When cheating is allowed, the game will accept invalid moves. e.g. taking four sticks at once.</div>
                 <div class="buttons center">
                     <button id="button-no" class="row-button rounded-corners margin-10 color-sec font-10 margin-all-4 selected-button" l:onclick="{
                         setField(false, "check", boolToString);
