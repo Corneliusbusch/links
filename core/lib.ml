@@ -839,6 +839,14 @@ let env : (string * (located_primitive * Types.datatype * pure)) list = [
   (`Client, datatype "(DomNode, String) ~> String",
   IMPURE);
 
+  "domAddStyleClassToRef",
+  (`Client, datatype "(DomNode, String) ~> ()",
+  IMPURE);
+
+  "domRemoveStyleClassFromRef",
+  (`Client, datatype "(DomNode, String) ~> ()",
+  IMPURE);
+
   "domGetChildrenFromRef",
   (`Client, datatype "(DomNode) ~> [ DomNode ]",
   IMPURE);
